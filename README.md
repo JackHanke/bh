@@ -1,2 +1,6 @@
-# bh
-Black Home NN Emulation
+# Black Hole Emulation
+
+![](./assets/bh.jpg)
+
+## TODOs
+- Everything
