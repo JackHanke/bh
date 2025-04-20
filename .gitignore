@@ -228,5 +228,7 @@ dkms.conf
 
 # special ignores
 harmpi/dumps
+harmpi/buggydumps
+harmpi/films
 
 
