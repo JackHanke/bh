@@ -968,7 +968,7 @@ def plc(myvar,**kwargs): #plc
     if cb:
         return res, cb
     else:
-        return res
+        return res, None
 
 def faraday():
     global omegaf1, omegaf2
