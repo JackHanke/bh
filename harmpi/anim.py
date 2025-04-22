@@ -1,4 +1,4 @@
-
+import os
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from harm_script import *
@@ -88,5 +88,14 @@ def animate_dumps(dumps: list[str], preds: list, save_path: str, r, h):
         blit=True
     )
 
+    directory_chunks = save_path.split('/')
+    directory = directory_chunks[0] + "/" + directory_chunks[1]
+
+    if not os.path.exists(directory):
+        print(f"Directory {directory} does not exist. Creating it...")
+        os.makedirs(directory)
+    else:
+        print(f"Directory {directory} already exists.")
+        
     anim.save(save_path)
     print(f'Saved animated dumps at {save_path}')    
