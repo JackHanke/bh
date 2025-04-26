@@ -7,7 +7,7 @@
     - [x] FFNN
     - [x] CNN
     - [.] UNet
-    - [.] Flow Based?
+    - [.] [Flow Based?](https://en.wikipedia.org/wiki/Flow-based_generative_model)
 - Do we AE data, then model the movie?
     - [.] for this project, an AE (trained on (first_frame, first_frame) pairs)
 - Visualization
