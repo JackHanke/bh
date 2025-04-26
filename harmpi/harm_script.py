@@ -17,7 +17,7 @@ mpl.rcParams['font.sans-serif'] = 'cmr10'
 
 #font = { 'size'   : 20}
 #rc('font', **font)
-rc('xtick', labelsize=20) 
+rc('xtick', labelsize=20)
 rc('ytick', labelsize=20) 
 #rc('xlabel', **font) 
 #rc('ylabel', **font) 

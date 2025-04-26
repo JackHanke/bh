@@ -226,9 +226,13 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+
 # special ignores
 harmpi/dumps
 harmpi/buggydumps
 harmpi/films
 
+# model save directories
+models/*/saves/*
+!models/*/saves/.gitkeep
 

@@ -1,4 +1,6 @@
-from harm_script import *
+from harmpi.harm_script import *
+
+# utils for communicating with harmpi 
 
 # rewrites read_header to get globals it uses into context
 def read_header(dump,issilent=True,returnheaderline=False):
@@ -245,9 +247,9 @@ def data_assign(gd,**kwargs):
 
 # reads in normal dump, returns dictionary of variables instead of injecting globals
 def read_dump_util(dump: str, noround=0):
-    headerline = read_header("dumps/" + dump, returnheaderline = True)
+    headerline = read_header("harmpi/dumps/" + dump, returnheaderline = True)
 
-    gd = read_body("dumps/" + dump,nx=N1+2*N1G,ny=N2+2*N2G,nz=N3+2*N3G,noround=1)
+    gd = read_body("harmpi/dumps/" + dump,nx=N1+2*N1G,ny=N2+2*N2G,nz=N3+2*N3G,noround=1)
     if noround:
         return_code, dump_dict = data_assign(         gd,type=type,nx=N1+2*N1G,ny=N2+2*N2G,nz=N3+2*N3G)
     else:
