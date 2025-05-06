@@ -2,6 +2,11 @@
 
 ![](./assets/bh.jpg)
 
+## Developer Notes
+
+- [Perlmutter Docs](https://docs.nersc.gov/getting-started/)
+    - To login: `ssh user@saul.nersc.gov`, then password + 6 digit Google Authenticator code
+
 ## TODOs
 - Design models (train on (first_frame, next_frame) pairs) 
     - [x] FFNN
