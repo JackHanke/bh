@@ -1,4 +1,35 @@
+import torch
+import numpy as np
+
+from utils.utils import read_dump_util
 from torch.utils.data import Dataset, DataLoader, random_split
+
+# 
+def tensorize_dumps(dumps:list, log_non_negs: bool = False):
+    data = []
+    for dump in dumps:
+        _, dump_dict = read_dump_util(dump=dump)
+
+        # rd(dump)
+        if log_non_negs:
+            rho = np.log10(dump_dict['rho'])
+            ug = np.log10(dump_dict['ug'])
+        else:
+            rho = dump_dict['rho']
+            ug = dump_dict['ug']
+        uu = dump_dict['uu']
+        B = dump_dict['B']
+
+        rho_tensor = torch.tensor(rho).squeeze(2).unsqueeze(0)
+        ug_tensor = torch.tensor(ug).squeeze(2).unsqueeze(0)
+        uu_tensor = torch.tensor(uu[1:4]).squeeze(3)
+        B_tensor = torch.tensor(B[1:4]).squeeze(3)
+        
+        data_tensor = torch.cat((rho_tensor, ug_tensor, uu_tensor, B_tensor), dim=0)
+        data.append(data_tensor.unsqueeze(0))
+
+    data = torch.cat(data, dim=0)
+    return data
 
 # Dataset for predicting the next frame
 class PredictionDataset(Dataset):
