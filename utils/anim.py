@@ -8,7 +8,7 @@ from utils.utils import read_dump_util
 import torch
 
 # structure dumps data for animation
-def make_ground_truth_frames():
+def make_ground_truth_frames(dumps: list):
     ground_truths = []
     for dump in dumps:
         _, dump_dict = read_dump_util(dump=dump)
@@ -17,6 +17,17 @@ def make_ground_truth_frames():
         ground_truths.append(ground_truth_array)
 
     return ground_truths
+
+# structure dumps data for animation
+def make_ground_truth_latents(dumps: list, net: torch.nn.Module):
+    ground_truths_latents = []
+    for dump in dumps:
+        _, dump_dict = read_dump_util(dump=dump)
+        ground_truth_array = dump_dict['rho'][:,:,0].transpose()
+        ground_truth_array = np.log10(ground_truth_array)
+        ground_truths.append(ground_truth_array)
+
+    return ground_truths_latents
 
 # run FFNN from starting dump for length of dumps
 # returns formatted predictions 
@@ -156,7 +167,7 @@ def animate_comparison(
         # if include colorbar, add colorbars
         if cb:
             if not anim_latents:
-                colorbar_truth = plt.colorbar(contour_truth, cax=axs[0], orientation='horizontal')
+                colorbar_truth = plt.colorbar(contour_truth, ax=axs[0], orientation='horizontal')
                 colorbar_pred = plt.colorbar(contour_pred, ax=axs[1], orientation='horizontal')
             if anim_latents:
                 truth_divider = make_axes_locatable(axs[0,0])

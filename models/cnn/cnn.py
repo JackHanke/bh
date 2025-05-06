@@ -61,6 +61,7 @@ class miniCNN(nn.Module):
     def __init__(self, input_channels, name: str = 'cnn', version_str: str = 'v0.0.0'):
         super().__init__()
         self.name = name
+        self.latent_dim = 3 * 5 * 5
         self.version_num = version_str
         self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
 
@@ -70,12 +71,12 @@ class miniCNN(nn.Module):
             nn.Conv2d(in_channels=16, out_channels=32, kernel_size=2, stride=2),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(32 * 32 * 32, 3 * 5 * 5),
+            nn.Linear(32 * 32 * 32, self.latent_dim),
             nn.Sigmoid(),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(3 * 5 * 5, 32 * 32 * 32),
+            nn.Linear(self.latent_dim, 32 * 32 * 32),
             nn.Unflatten(1, (32, 32, 32)),
             nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=3, stride=2),  
             nn.ReLU(),
@@ -87,6 +88,7 @@ class miniCNN(nn.Module):
         x = self.decoder(x)
         return x
 
+    
     def encode(self, x):
         return self.encoder(x)
 

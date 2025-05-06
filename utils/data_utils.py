@@ -4,7 +4,7 @@ import numpy as np
 from utils.utils import read_dump_util
 from torch.utils.data import Dataset, DataLoader, random_split
 
-# 
+# turn dumps on disk into single stacked tensor 
 def tensorize_dumps(dumps:list, log_non_negs: bool = False):
     data = []
     for dump in dumps:
@@ -31,6 +31,11 @@ def tensorize_dumps(dumps:list, log_non_negs: bool = False):
     data = torch.cat(data, dim=0)
     return data
 
+# turn list of latent tensors into single tensor for training
+def tensorize_latents(latents:list[torch.Tensor]):
+    data = torch.cat(latents, dim=0)
+    return data
+
 # Dataset for predicting the next frame
 class PredictionDataset(Dataset):
     def __init__(self, dataset):
@@ -45,7 +50,7 @@ class PredictionDataset(Dataset):
         return data, label
 
 # 
-def make_prediction_dataloaders(batch_size: int = 8):
+def make_prediction_dataloaders(data: torch.Tensor, batch_size: int = 8):
     loaded_data = PredictionDataset(data)
     train_size = int(0.7 * len(loaded_data))
     val_size = int(0.15 * len(loaded_data))

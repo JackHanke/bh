@@ -7,18 +7,21 @@ import matplotlib.pyplot as plt
 class FFNN(nn.Module):
     def __init__(self, input_dim: int, version_str: str = 'v0.0.0'):
         super().__init__()
+        self.input_dim = input_dim
         self.version_num = version_str
         self.save_path = f'models/ffnn/saves/ffnn_{self.version_num}.pth'
+
         self.layer1 = nn.Linear(input_dim, 64)
+        self.relu1 = nn.ReLU()
         self.layer2 = nn.Linear(64, 64)
+        self.relu2 = nn.ReLU()
         self.layer3 = nn.Linear(64, input_dim)
-        self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.layer1(x)
-        x = self.relu(x)
+        x = self.relu1(x)
         x = self.layer2(x)
-        x = self.relu(x)
+        x = self.relu2(x)
         x = self.layer3(x)
         return x
 
