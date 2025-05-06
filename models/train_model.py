@@ -6,16 +6,15 @@ import matplotlib.pyplot as plt
 # train an FFNN, CNN, or UNet
 def train_model(
         model: torch.nn.Module, 
-        loss_fn: torch.nn,
         epochs: int, 
         train_loader: DataLoader,
         valid_loader: DataLoader = None,
+        loss_fn: torch.nn = torch.nn.MSELoss(),
         flatten: bool = False,
         plot_learning_curves: bool = True,
         verbose: bool = False,
     ):
 
-    loss_fn = torch.nn.MSELoss()
     optim = torch.optim.Adam(params=model.parameters())
 
     train_losses, valid_losses = [], []
