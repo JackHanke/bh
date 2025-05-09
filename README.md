@@ -6,6 +6,9 @@
 
 - [Perlmutter Docs](https://docs.nersc.gov/getting-started/)
     - To login: `ssh user@saul.nersc.gov`, then password + 6 digit Google Authenticator code
+- scratch directories have huge storage compared to home on scs
+
+- [BitBucket](https://bitbucket.org/atchekho/harm2d/src/master/)
 
 ## TODOs
 - Design models (train on (first_frame, next_frame) pairs) 
