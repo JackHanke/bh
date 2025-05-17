@@ -238,3 +238,5 @@ models/*/saves/*
 
 # bitbucket token
 bitbucket.txt
+
+harm2d/plotting

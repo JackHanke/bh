@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH -A PHY129
+#SBATCH -J visit1
+#SBATCH -N 5
+#SBATCH -n 160
+#SBATCH -t 24:00:00
+
+module load python/2.7.15-anaconda2-2018.12
+cd /gpfs/alpine/phy129/proj-shared/T65TOR/reduced
+export OMP_NUM_THREADS=32
+
+/autofs/nccs-svm1_sw/rhea/visit/bin/visit -cli -nowin -np 32 -l srun -s /gpfs/alpine/phy129/proj-shared/T65TOR/render.py 250 300 1 &
+/autofs/nccs-svm1_sw/rhea/visit/bin/visit -cli -nowin -np 32 -l srun -s /gpfs/alpine/phy129/proj-shared/T65TOR/render.py 300 350 1 &
+/autofs/nccs-svm1_sw/rhea/visit/bin/visit -cli -nowin -np 32 -l srun -s /gpfs/alpine/phy129/proj-shared/T65TOR/render.py 350 400 1 &
+/autofs/nccs-svm1_sw/rhea/visit/bin/visit -cli -nowin -np 32 -l srun -s /gpfs/alpine/phy129/proj-shared/T65TOR/render.py 400 450 1 &
+/autofs/nccs-svm1_sw/rhea/visit/bin/visit -cli -nowin -np 32 -l srun -s /gpfs/alpine/phy129/proj-shared/T65TOR/render.py 450 500 1 &
+wait

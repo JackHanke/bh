@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH -A PHY129
+#SBATCH -J htar_reduced
+#SBATCH -N 93
+#SBATCH -n 2976
+#SBATCH -t 24:00:00
+
+for i in {0..2950}
+do
+  echo "Number: $i"
+  srun -N1 -n1 --exclusive htar -cvf /proj/phy129/T65HTAR/reduced/dumps$i.tar /gpfs/alpine/phy129/proj-shared/T65TOR/reduced/dumps$i/* &
+done
+wait
