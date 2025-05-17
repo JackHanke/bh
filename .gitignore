@@ -236,3 +236,5 @@ harmpi/films
 models/*/saves/*
 !models/*/saves/.gitkeep
 
+# bitbucket token
+bitbucket.txt
