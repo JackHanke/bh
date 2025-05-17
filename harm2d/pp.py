@@ -35,7 +35,7 @@ from matplotlib.gridspec import GridSpec
 from distutils.dir_util import copy_tree
 
 # add amsmath to the preamble
-mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amssymb,amsmath}"]
+# mpl.rcParams['text.latex.preamble'] = [r"\usepackage{amssymb,amsmath}"]
 from matplotlib import rc
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
