@@ -246,10 +246,10 @@ def data_assign(gd,**kwargs):
     return 0, dump_dict
 
 # reads in normal dump, returns dictionary of variables instead of injecting globals
-def read_dump_util(dump: str, noround=0):
-    headerline = read_header("harmpi/dumps/" + dump, returnheaderline = True)
+def read_dump_util(dump: str, path_to_dumps:str = 'harmpi/dumps/',noround: int = 0):
+    headerline = read_header(path_to_dumps + dump, returnheaderline = True)
 
-    gd = read_body("harmpi/dumps/" + dump,nx=N1+2*N1G,ny=N2+2*N2G,nz=N3+2*N3G,noround=1)
+    gd = read_body(path_to_dumps + dump,nx=N1+2*N1G,ny=N2+2*N2G,nz=N3+2*N3G,noround=1)
     if noround:
         return_code, dump_dict = data_assign(         gd,type=type,nx=N1+2*N1G,ny=N2+2*N2G,nz=N3+2*N3G)
     else:
@@ -258,7 +258,8 @@ def read_dump_util(dump: str, noround=0):
     return return_code, dump_dict
 
 if __name__ == '__main__':
-    _, dump_dict = read_dump_util(dump='dump000')
+    # _, dump_dict = read_dump_util(dump='dump000')
+    _, dump_dict = read_dump_util(path_to_dumps='/pscratch/sd/l/lalakos/ml_data_rc300',dump='dump000')
 
-    rho_val = dump_dict['rho']
-    print(f'rho variable for this dump: {rho_val}')
+    # rho_val = dump_dict['rho']
+    # print(f'rho variable for this dump: {rho_val}')
