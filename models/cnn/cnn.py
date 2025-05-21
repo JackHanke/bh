@@ -126,7 +126,7 @@ class miniCNN(nn.Module):
 
 # the 3D CNN for full 3 dimensional bh emulation
 class CNN_3D(nn.Module):
-    def __init__(self, input_channels, name: str = '3dcnn', version_str: str = 'v0.0.0'):
+    def __init__(self, input_channels: int = 8, name: str = '3dcnn', version_str: str = 'v0.0.0'):
         super().__init__()
         # model information and metadata
         self.name = name
@@ -135,46 +135,52 @@ class CNN_3D(nn.Module):
         # middle - most latent dimension
         self.latent_dim = 3 * 5 * 5
 
+        # total data is shape (batch_size, 224, 48, 96)
+        
         # encoder stack
         self.encoder = nn.Sequential(
-            nn.Conv2d(
+            nn.Conv3d(
                 in_channels=input_channels, 
-                out_channels=16, 
+                out_channels=4, 
                 kernel_size=(3,3,3), 
-                stride=2, 
-                padding=1
+                stride=1, 
+                padding=2
             ),
+            nn.MaxPool3d((4, 4, 4), stride=(2, 2, 2)),
             nn.ReLU(),
-            nn.Conv2d(
-                in_channels=16, 
-                out_channels=32, 
-                kernel_size=2, 
-                stride=2
+            nn.Conv3d(
+                in_channels=4, 
+                out_channels=4, 
+                kernel_size=(3,3,3), 
+                stride=1,
+                padding=2
             ),
+            nn.MaxPool3d((4, 4, 4), stride=(2, 2, 2)),
             nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(32 * 32 * 32, self.latent_dim),
+            nn.Linear(4*224*48*96 // (4*4*4), self.latent_dim),
             nn.Sigmoid(),
         )
 
         # decoder stack
         self.decoder = nn.Sequential(
-            nn.Linear(self.latent_dim, 32 * 32 * 32),
-            nn.Unflatten(1, (32, 32, 32)),
-            nn.ConvTranspose2d(
-                in_channels=32, 
-                out_channels=32, 
-                kernel_size=3, 
-                stride=2
-            ),  
-            nn.ReLU(),
-            nn.ConvTranspose2d(
-                in_channels=32, 
-                out_channels=8, 
-                kernel_size=2, 
+            nn.Linear(self.latent_dim, 4*224*48*96 // (4*4*4)),
+            nn.Unflatten(1, (4, (224//4), (48//4), (96//4))),
+            nn.ConvTranspose3d(
+                in_channels=4, 
+                out_channels=4, 
+                kernel_size=(4,4,4), 
                 stride=2, 
                 padding=1
-            ) # made changes to the kernel size to fit pixel cutoff issue
+            ),
+            nn.ReLU(),
+            nn.ConvTranspose3d(
+                in_channels=4, 
+                out_channels=8, 
+                kernel_size=(4,4,4), 
+                stride=2,
+                padding=1
+            ),
         )
 
     # forward pass on x
@@ -195,11 +201,15 @@ class CNN_3D(nn.Module):
     @torch.no_grad()
     def inference(self, x):
         return self.forward(x)
-
+    
     # save model to self.save_path
-    def save(self):
-        torch.save(self.state_dict(), self.save_path)
-        print(f'Saved model as {self.save_path}')
+    def save(self, save_path:str = None):
+        if save_path is None:
+            torch.save(self.state_dict(), self.save_path)
+            print(f'Saved model as {self.save_path}')
+        else:
+            torch.save(self.state_dict(), save_path)
+            print(f'Saved model as {save_path}')
 
     # return number of parameters
     def num_params(self):
@@ -217,3 +227,20 @@ class CNN_3D(nn.Module):
 
         size_all_mb = (param_size + buffer_size) / 1024**2
         return size_all_mb
+
+
+if __name__ == '__main__':
+    # testing for sc stuff
+    sc_testing = True
+    if sc_testing:
+        model = CNN_3D()
+        # read in saved data for fast latency
+        save_path = os.environ['HOME']+'/bh/data.pkl'
+        data = torch.load(f=save_path)
+        print(data.shape)
+        
+        pred = model.forward(data)
+        print(f'pred shape: {pred.shape}')
+        
+        print(f'Params: {model.num_params()}')
+        print(f'Mem size: {model.size_in_memory()}')

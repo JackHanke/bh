@@ -22,6 +22,7 @@ Then refresh your browser window, and then click on the `scenvkernel` kernel to 
 
 ## Project TODOs
 - training scripts for sc dataset
+    - cuda ize everything
 - 3d CNN
 - 3d plotting
     - `.gif` and `.mp4` support

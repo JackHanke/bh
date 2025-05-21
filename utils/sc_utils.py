@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 # returns random selection of dump incides
 def custom_batcher(
