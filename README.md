@@ -6,9 +6,10 @@
 
 - [Perlmutter Docs](https://docs.nersc.gov/getting-started/)
     - To login: `ssh user@saul.nersc.gov`, then password + 6 digit Google Authenticator code
-- scratch directories have huge storage compared to home on scs
+- Real 3 dimensional data can be found at: `'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
+- The [BitBucket link](https://bitbucket.org/atchekho/harm2d/src/master/)
 
-- [BitBucket](https://bitbucket.org/atchekho/harm2d/src/master/)
+## Setup
 
 To setup environment, run the following:
 ```
@@ -19,28 +20,21 @@ python -m ipykernel install --user --name scenv --display-name scenvkernel
 
 Then refresh your browser window, and then click on the `scenvkernel` kernel to run the `sc_workspace.ipynb`.
 
-## TODOs
-- Design models (train on (first_frame, next_frame) pairs) 
-    - [x] FFNN
-    - [x] CNN
-    - [.] UNet
-    - [.] [Flow Based?](https://en.wikipedia.org/wiki/Flow-based_generative_model)
-- Do we AE data, then model the movie?
-    - [.] for this project, an AE (trained on (first_frame, first_frame) pairs)
-- Visualization
-    - [.] Make viz code variable 
-    - [.] Visualize Latent Space
-    - [.] Visualize error over course of prediction movie from ground truth
-- 2D to 3D convolutions
-- Design Cost
-    - [x] MSE 
-    - [.] Location specific MSE
-    - [.] Conservation Laws (Conservation of Angular Momentum, Energy, Mass, etc.)
-- Fully understand what we are shooting for
-    - [.] Handling time 
-- Once we have supercomputer access...
-    - Test 3d conv code
-
+## Project TODOs
+- training scripts for sc dataset
+- 3d CNN
+- 3d plotting
+    - `.gif` and `.mp4` support
+- train model
+- documentation
+- comments
+- clean up code, delete irrelevant files
+- video
+    - script
+    - film
+    - audio
+    - editing
+- slides
 
 ## Practicum Catchup Meeting
 - *I want to hear/see a crisp clean statement of exactly what you ae going to be working on with your clients. This is a place where less is more.*

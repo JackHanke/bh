@@ -56,7 +56,7 @@ class CNN(nn.Module):
         size_all_mb = (param_size + buffer_size) / 1024**2
         return size_all_mb
 
-# Jack's CNN
+# mini CNN for testing 
 class miniCNN(nn.Module):
     def __init__(self, input_channels, name: str = 'cnn', version_str: str = 'v0.0.0'):
         super().__init__()
@@ -83,25 +83,35 @@ class miniCNN(nn.Module):
             nn.ConvTranspose2d(in_channels=32, out_channels=8, kernel_size=2, stride=2, padding=1) # made changes to the kernel size to fit pixel cutoff issue
         )
         
+    # forward pass on x
     def forward(self, x):
         x = self.encoder(x)
         x = self.decoder(x)
         return x
 
-    
+    # encode raw x
     def encode(self, x):
         return self.encoder(x)
 
+    # decode latent x
     def decode(self, x):
         return self.decoder(x)
 
+    # inference on x
+    @torch.no_grad()
+    def inference(self, x):
+        return self.forward(x)
+
+    # save model to self.save_path
     def save(self):
         torch.save(self.state_dict(), self.save_path)
         print(f'Saved model as {self.save_path}')
 
+    # return number of parameters
     def num_params(self):
         return sum(p.numel() for p in self.parameters())
 
+    # return size of model in memory
     def size_in_memory(self):
         param_size = 0
         for param in self.parameters():
@@ -114,5 +124,96 @@ class miniCNN(nn.Module):
         size_all_mb = (param_size + buffer_size) / 1024**2
         return size_all_mb
 
+# the 3D CNN for full 3 dimensional bh emulation
+class CNN_3D(nn.Module):
+    def __init__(self, input_channels, name: str = '3dcnn', version_str: str = 'v0.0.0'):
+        super().__init__()
+        # model information and metadata
+        self.name = name
+        self.version_num = version_str
+        self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
+        # middle - most latent dimension
+        self.latent_dim = 3 * 5 * 5
 
+        # encoder stack
+        self.encoder = nn.Sequential(
+            nn.Conv2d(
+                in_channels=input_channels, 
+                out_channels=16, 
+                kernel_size=(3,3,3), 
+                stride=2, 
+                padding=1
+            ),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=16, 
+                out_channels=32, 
+                kernel_size=2, 
+                stride=2
+            ),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(32 * 32 * 32, self.latent_dim),
+            nn.Sigmoid(),
+        )
 
+        # decoder stack
+        self.decoder = nn.Sequential(
+            nn.Linear(self.latent_dim, 32 * 32 * 32),
+            nn.Unflatten(1, (32, 32, 32)),
+            nn.ConvTranspose2d(
+                in_channels=32, 
+                out_channels=32, 
+                kernel_size=3, 
+                stride=2
+            ),  
+            nn.ReLU(),
+            nn.ConvTranspose2d(
+                in_channels=32, 
+                out_channels=8, 
+                kernel_size=2, 
+                stride=2, 
+                padding=1
+            ) # made changes to the kernel size to fit pixel cutoff issue
+        )
+
+    # forward pass on x
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+    # encode raw x
+    def encode(self, x):
+        return self.encoder(x)
+
+    # decode latent x
+    def decode(self, x):
+        return self.decoder(x)
+
+    # inference on x
+    @torch.no_grad()
+    def inference(self, x):
+        return self.forward(x)
+
+    # save model to self.save_path
+    def save(self):
+        torch.save(self.state_dict(), self.save_path)
+        print(f'Saved model as {self.save_path}')
+
+    # return number of parameters
+    def num_params(self):
+        return sum(p.numel() for p in self.parameters())
+
+    # return size of model in memory
+    def size_in_memory(self):
+        param_size = 0
+        for param in self.parameters():
+            param_size += param.nelement() * param.element_size()
+
+        buffer_size = 0
+        for buffer in self.buffers():
+            buffer_size += buffer.nelement() * buffer.element_size()
+
+        size_all_mb = (param_size + buffer_size) / 1024**2
+        return size_all_mb

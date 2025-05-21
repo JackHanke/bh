@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 
-# train an FFNN, CNN, or UNet
+# train an FFNN, CNN, or UNet for local harmpi setup
 def train_model(
         model: torch.nn.Module, 
         epochs: int, 
