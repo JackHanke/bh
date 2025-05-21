@@ -240,3 +240,4 @@ models/*/saves/*
 bitbucket.txt
 
 harm2d/plotting
+data.pkl

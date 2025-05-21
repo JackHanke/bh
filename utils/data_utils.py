@@ -31,6 +31,9 @@ def tensorize_dumps(dumps:list, log_non_negs: bool = False):
     data = torch.cat(data, dim=0)
     return data
 
+# tensorize dumps 
+def tensorize_dumps_sc(dumps:list):
+
 # turn list of latent tensors into single tensor for training
 def tensorize_latents(latents:list[torch.Tensor]):
     data = torch.cat(latents, dim=0)

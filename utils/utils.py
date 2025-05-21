@@ -257,6 +257,74 @@ def read_dump_util(dump: str, path_to_dumps:str = 'harmpi/dumps/',noround: int =
     
     return return_code, dump_dict
 
+# reading dump, 
+def read_dump_util_sc(
+        dump: int, 
+        set_mpi: callable,
+        rblock_new: callable,
+        rpar_new: callable,
+        rgdump_new: callable,
+        rdump_new: callable,
+        rgdump_griddata: callable,
+        rdump_griddata: callable,
+        dumps_path: str = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced',
+    ):
+
+    os.chdir(dumps_path)
+    
+    global notebook, axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
+    global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
+    global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
+
+    # set params
+    lowres1 = 1
+    lowres2 = 1
+    lowres3 = 1
+    
+    do_box=0
+    r_min=1.0
+    r_max=100.0
+    theta_min=0.0
+    theta_max=9
+    phi_min=-1
+    phi_max=9
+    axisym=1
+    print_fieldlines=0
+    export_raytracing_GRTRANS=0
+    export_raytracing_RAZIEH=0
+    kerr_schild=0
+    DISK_THICKNESS=0.03
+    set_cart=0
+    set_mpi(0)
+    check_files=1
+    notebook=1
+    
+    interpolate_var=0
+    
+    AMR = 0 # get all data in grid
+
+    rblock_new(dump)
+    rpar_new(dump)
+
+    if AMR:
+        rgdump_new(dumps_path)
+        rdump_new(dumps_path, dump)
+    else:
+        rgdump_griddata(dumps_path)
+        rdump_griddata(dumps_path, dump)
+
+    os.chdir(os.environ['HOME']+'/bh')
+
+    dump_dict = {
+        'r': r,
+        'ug': ug,
+        'uu': uu,
+        'B': B,
+        't': t,
+    }
+
+    return dump_dict
+
 if __name__ == '__main__':
     # _, dump_dict = read_dump_util(dump='dump000')
     _, dump_dict = read_dump_util(path_to_dumps='/pscratch/sd/l/lalakos/ml_data_rc300',dump='dump000')

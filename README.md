@@ -10,6 +10,15 @@
 
 - [BitBucket](https://bitbucket.org/atchekho/harm2d/src/master/)
 
+To setup environment, run the following:
+```
+conda env create -f scenv.yaml
+conda activate scenv
+python -m ipykernel install --user --name scenv --display-name scenvkernel
+```
+
+Then refresh your browser window, and then click on the `scenvkernel` kernel to run the `sc_workspace.ipynb`.
+
 ## TODOs
 - Design models (train on (first_frame, next_frame) pairs) 
     - [x] FFNN
