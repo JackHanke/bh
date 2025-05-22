@@ -24,6 +24,7 @@ Then refresh your browser window, and then click on the `scenvkernel` kernel to 
 - training scripts
   - external logging
 - improve read time from drive!
+- fix learning curves
 - 3d plotting
     - find a way to render part of the data (rendering all 10k frames would be ~3 hour movie)
     - `.gif` and `.mp4` support
