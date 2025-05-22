@@ -39,6 +39,12 @@ from distutils.dir_util import copy_tree
 from matplotlib import rc
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+## Arjun's ##
+import time
+from numba import njit
+## Arjun's ##
+
+
 rc('text', usetex=False)
 font = {'size': 40}
 rc('font', **font)
@@ -532,25 +538,45 @@ def rblock_new(dump):
     AMR_TIMELEVEL=36
     
     # Read in data for every block
+    # print("_" * 20)
+    # start = time.time()
     if (os.path.isfile("dumps%d/grid" % dump)):
         fin = open("dumps%d/grid" % dump, "rb")
         size = os.path.getsize("dumps%d/grid" % dump)
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = 36
+        end = time.time()
+        # print(f"End of if: {end - start}")
+        
     elif(os.path.isfile("gdumps/grid")):
         fin = open("gdumps/grid", "rb")
         size = os.path.getsize("gdumps/grid")
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
+        end = time.time()
+        # print(f"End of elif: {end - start}")
+        
     else:
         print("Cannot find grid file in dump %d !" %dump)
 
     # Allocate memory
+    # start_mem = time.time()
     block = np.zeros((nmax, 200), dtype=np.int32, order='C')
     n_ord = np.zeros((nmax), dtype=np.int32, order='C')
-
+    # end_mem = time.time()
+    # print(f"end of memory allocation: {end_mem - start_mem}")
+    
+    start_gd = time.time()
     gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
+    # print(gd.shape)
+    # end_load = time.time()
+    # print(f"end of loading gd: {end_load - start_gd}")
+    
     gd = gd.reshape((NV, nmax), order='F').T
+    # end_gd_reshape = time.time()
+    # print(f"end of reshape gd: {end_gd_reshape - end_load}")
+
+    # start_process_gd = time.time()
     block[:,0:NV] = gd
     if(NV<170):
         block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
@@ -564,7 +590,9 @@ def rblock_new(dump):
                 n_ord[i] = n
                 i += 1
 
+    # print(f"end of procesing grid data: {time.time() - start_process_gd}")
     fin.close()
+    # print("_" * 20)
 
 def rgdump_new(dir):
     global ti, tj, tk, x1, x2, x3, r, h, ph, gcov, gcon, gdet, drdx, dxdxp, alpha, axisym

@@ -325,6 +325,147 @@ def read_dump_util_sc(
 
     return dump_dict
 
+def rblock_new_opt(dump):
+    global AMR_ACTIVE, AMR_LEVEL,AMR_LEVEL1,AMR_LEVEL2,AMR_LEVEL3, AMR_REFINED, AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT
+    global AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8
+    global AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP
+    global AMR_CORN1, AMR_CORN2, AMR_CORN3, AMR_CORN4, AMR_CORN5, AMR_CORN6
+    global AMR_CORN7, AMR_CORN8, AMR_CORN9, AMR_CORN10, AMR_CORN11, AMR_CORN12
+    global AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8
+    global AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8
+    global AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P
+    global block, nmax, n_ord, AMR_TIMELEVEL
+
+    AMR_ACTIVE = 0
+    AMR_LEVEL = 1
+    AMR_REFINED = 2
+    AMR_COORD1 = 3
+    AMR_COORD2 = 4
+    AMR_COORD3 = 5
+    AMR_PARENT = 6
+    AMR_CHILD1 = 7
+    AMR_CHILD2 = 8
+    AMR_CHILD3 = 9
+    AMR_CHILD4 = 10
+    AMR_CHILD5 = 11
+    AMR_CHILD6 = 12
+    AMR_CHILD7 = 13
+    AMR_CHILD8 = 14
+    AMR_NBR1 = 15
+    AMR_NBR2 = 16
+    AMR_NBR3 = 17
+    AMR_NBR4 = 18
+    AMR_NBR5 = 19
+    AMR_NBR6 = 20
+    AMR_NODE = 21
+    AMR_POLE = 22
+    AMR_GROUP = 23
+    AMR_CORN1 = 24
+    AMR_CORN2 = 25
+    AMR_CORN3 = 26
+    AMR_CORN4 = 27
+    AMR_CORN5 = 28
+    AMR_CORN6 = 29
+    AMR_CORN7 = 30
+    AMR_CORN8 = 31
+    AMR_CORN9 = 32
+    AMR_CORN10 = 33
+    AMR_CORN11 = 34
+    AMR_CORN12 = 35
+    AMR_LEVEL1=  110
+    AMR_LEVEL2 = 111
+    AMR_LEVEL3 = 112  
+    AMR_NBR1_3=113
+    AMR_NBR1_4=114
+    AMR_NBR1_7=115
+    AMR_NBR1_8=116
+    AMR_NBR2_1=117
+    AMR_NBR2_2=118
+    AMR_NBR2_3=119
+    AMR_NBR2_4=120
+    AMR_NBR3_1=121
+    AMR_NBR3_2=122
+    AMR_NBR3_5=123
+    AMR_NBR3_6=124
+    AMR_NBR4_5=125
+    AMR_NBR4_6=126
+    AMR_NBR4_7=127
+    AMR_NBR4_8=128
+    AMR_NBR5_1=129
+    AMR_NBR5_3=130
+    AMR_NBR5_5=131
+    AMR_NBR5_7=132
+    AMR_NBR6_2=133
+    AMR_NBR6_4=134
+    AMR_NBR6_6=135
+    AMR_NBR6_8=136
+    AMR_NBR1P=161
+    AMR_NBR2P=162
+    AMR_NBR3P=163
+    AMR_NBR4P=164
+    AMR_NBR5P=165
+    AMR_NBR6P=166
+    AMR_TIMELEVEL=36
+    
+    # Read in data for every block
+    # print("_" * 20)
+    # start = time.time()
+    if (os.path.isfile("dumps%d/grid" % dump)):
+        fin = open("dumps%d/grid" % dump, "rb")
+        size = os.path.getsize("dumps%d/grid" % dump)
+        nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
+        NV = 36
+        # end = time.time()
+        # print(f"End of if: {end - start}")
+        
+    elif(os.path.isfile("gdumps/grid")):
+        fin = open("gdumps/grid", "rb")
+        size = os.path.getsize("gdumps/grid")
+        nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
+        NV = (size - 1) // nmax // 4
+        # end = time.time()
+        # print(f"End of elif: {end - start}")
+        
+    else:
+        print("Cannot find grid file in dump %d !" %dump)
+
+    # Allocate memory
+    # start_mem = time.time()
+    block = np.zeros((nmax, 200), dtype=np.int32, order='C')
+    n_ord = np.zeros((nmax), dtype=np.int32, order='C')
+    # end_mem = time.time()
+    # print(f"end of memory allocation: {end_mem - start_mem}")
+
+    # print(f"NV * nmax: {NV * nmax}")
+    
+    # start_gd_memmap = time.time()
+    gd_mem = np.memmap(fin, dtype=np.int32, mode='r')[1:]
+    # end_load_gd_mem = time.time()
+    # print(f"end of loading gd mem: {end_load_gd_mem - start_gd_memmap} Shape: {gd_mem.shape}")
+
+    gd_mem = gd_mem.reshape((NV, nmax), order='F').T
+    # end_gd_mem_reshape = time.time()
+    # print(f"end of reshape gd mem: {end_gd_mem_reshape - end_load_gd_mem}")
+
+    # start_process_gd_mem = time.time()
+    block[:,0:NV] = gd_mem
+    if(NV<170):
+        block[:, AMR_LEVEL1] = gd_mem[:, AMR_LEVEL]
+        block[:, AMR_LEVEL2] = gd_mem[:, AMR_LEVEL]
+        block[:, AMR_LEVEL3] = gd_mem[:, AMR_LEVEL]
+    
+    # intermediate_process_gd_mem = time.time()
+    # print(f"intermediate processing gd mem: {intermediate_process_gd_mem - start_process_gd_mem}")
+    i = 0
+    if (os.path.isfile("dumps%d/grid" % dump)):
+        for n in range(0, nmax):
+            if block[n, AMR_ACTIVE] == 1:
+                n_ord[i] = n
+                i += 1
+    # print(f"end of procesing grid data mem: {time.time() - intermediate_process_gd_mem}")
+    fin.close()
+    # print("_" * 20)
+
 if __name__ == '__main__':
     # _, dump_dict = read_dump_util(dump='dump000')
     _, dump_dict = read_dump_util(path_to_dumps='/pscratch/sd/l/lalakos/ml_data_rc300',dump='dump000')

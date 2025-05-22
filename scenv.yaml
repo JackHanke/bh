@@ -184,6 +184,7 @@ dependencies:
   - libxslt=1.1.39=h76b75d6_0
   - libzlib=1.3.1=hb9d3cd8_2
   - llvm-openmp=20.1.5=h024ca30_0
+  - llvmlite=0.44.0=py311h9c9ff8c_1
   - lz4-c=1.10.0=h5888daf_1
   - markupsafe=3.0.2=py311h2dc5d0c_1
   - matplotlib=3.10.3=py311h38be061_0
@@ -204,6 +205,7 @@ dependencies:
   - networkx=3.4.2=pyh267e887_2
   - notebook=7.4.2=pyhd8ed1ab_0
   - notebook-shim=0.2.4=pyhd8ed1ab_1
+  - numba=0.61.2=py311h4e1c48f_0
   - numpy=2.2.6=py311h5d046bc_0
   - openjpeg=2.5.3=h5fbd93e_0
   - openldap=2.6.9=he970967_0
@@ -313,4 +315,4 @@ dependencies:
   - zipp=3.21.0=pyhd8ed1ab_1
   - zstandard=0.23.0=py311h9ecbd09_2
   - zstd=1.5.7=hb8e6e7a_2
-prefix: /global/homes/j/jackh/.conda/envs/scenv
+prefix: /global/homes/a/arjuna/.conda/envs/scenv
