@@ -35,15 +35,16 @@ def make_prediciton_frames(
     net: torch.nn, 
     first_frame: torch.Tensor, 
     num_frames: int,
+    device,
     make_latents: bool = False,
-    flatten: bool = False
+    flatten: bool = False,
     ):
     # helper for adding formatted frame to predictions array
 
     # format prediction tensor to array for animation
     def _postprocess_prediction(frame: torch.Tensor):
         # NOTE ugliest thing ever please fix
-        frame_array = frame.clone().detach()[0][0].unsqueeze(-1).detach().numpy()[:,:,0].transpose()
+        frame_array = frame.clone().detach()[0][0].unsqueeze(-1).detach().cpu().numpy()[:,:,0].transpose()
         # TODO second 0 above means rho! find out how to make this not stupid
         return frame_array
         
@@ -54,7 +55,7 @@ def make_prediciton_frames(
 
     # format latent tensor to array for animation
     def _postprocess_latent(frame: torch.Tensor):
-        frame_array = frame.clone().detach().detach().numpy()
+        frame_array = frame.clone().detach().cpu().numpy()
         return frame_array
 
     net.eval()
@@ -70,6 +71,8 @@ def make_prediciton_frames(
 
         # reshape for network
         if flatten: frame = torch.reshape(frame, (batch_len, 8*128*128))
+
+        frame = frame.to(device)
 
         # forward pass
         if not make_latents:

@@ -21,12 +21,19 @@ python -m ipykernel install --user --name scenv --display-name scenvkernel
 Then refresh your browser window, and then click on the `scenvkernel` kernel to run the `sc_workspace.ipynb`.
 
 ## Project TODOs
-- training scripts for sc dataset
-    - cuda ize everything
-- 3d CNN
+- training scripts
+  - external logging
+- improve read time from drive!
 - 3d plotting
+    - find a way to render part of the data (rendering all 10k frames would be ~3 hour movie)
     - `.gif` and `.mp4` support
+    - does aris have ground truth movies for reduced data?
+- 3d CNN
+    - testing model exists
+    - we need a real model, real model architecture, and confirm it works on subset of data before full training process
+    - 
 - train model
+    - setup GPU instance, ensure training 
 - documentation
 - comments
 - clean up code, delete irrelevant files
