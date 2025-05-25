@@ -113,7 +113,9 @@ def setup():
 
 # training script
 def train():
-    from harm2d.pp import rgdump_griddata
+    # from harm2d.pp import rgdump_griddata
+    # from harm2d.pp import *
+    import harm2d.pp as locpp
 
     # path to dumps
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
@@ -166,7 +168,7 @@ def train():
             block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
             block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
 
-    rgdump_griddata(dumps_path)
+    locpp.rgdump_griddata(dumps_path)
 
     for epoch in range(num_epochs):
         ## Training
