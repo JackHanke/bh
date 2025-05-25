@@ -5,16 +5,6 @@ import subprocess
 import logging
 import time
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    filename='training.log', 
-    filemode='w', 
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-# logger = logging.getLogger(__name__)
-
 # 
 def run_build_command(script_name: str, command_args: list):
     """

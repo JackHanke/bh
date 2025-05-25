@@ -5848,23 +5848,17 @@ if do_train:
     import subprocess
     import logging
     import time
+    import pickle
 
     # training imports
     import torch
+    from torchinfo import summary
     import numpy as np
     from tqdm import tqdm
 
     # training utilities
     from utils.sc_utils import custom_batcher, tensorize_globals
     from models.cnn.cnn import CNN_3D
-
-    logger = logging.getLogger(__name__)
-    logging.basicConfig(
-        filename='training.log', 
-        filemode='w', 
-        level=logging.INFO, 
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
 
     # set params
     lowres1 = 1 # 
@@ -6004,6 +5998,19 @@ def train():
     global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
     global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
 
+    logger = logging.getLogger(__name__)
+    # logs saves to training.log in harm2d directory
+    logging.basicConfig(
+        filename='training.log',
+        filemode='w',
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+    import yaml
+    with open('train_config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+
     # path to dumps
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
     os.chdir(dumps_path)
@@ -6011,18 +6018,21 @@ def train():
     print('--- Training script running! ---')
 
     # number of data points
-    num_dumps = 11 - 1
+    num_dumps = config['num_dumps']
     # batch size
-    batch_size = 2
+    batch_size = config['batch_size']
     # number of epochs
-    num_epochs = 2
+    num_epochs = config['num_epochs']
     # access device, cuda device if accessible
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    logging.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size} on device{device}.')
+    logger.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size} on {device} device.')
 
     # set model
     model = CNN_3D().to(device)
+    summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
+    logger.info('\n'+str(summary_str))
+
     # set loss
     optim = torch.optim.Adam(params=model.parameters())
     loss_fn = torch.nn.MSELoss()
@@ -6061,6 +6071,7 @@ def train():
             batch_data, label_data = [], []
             # batch_idx is the dump number
             for batch_idx in batch_indexes:
+                start = time.time()
 
                 # at every batch of size batch_size, we need to read in 2 * batch_size dumps
                 
@@ -6102,12 +6113,19 @@ def train():
             # update paramts
             optim.step()
 
-            prog_bar.set_description(f'Train batch {batch_num+1} completed with loss {loss_value.item():.4f}')
+            # training batch logging
+            batch_str = f'Epoch {epoch+1} train batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s'
+            prog_bar.set_description(batch_str)
+            logger.debug(batch_str)
 
         # training loss tracking
         avg_loss_after_epoch = sum(epoch_train_loss)/len(epoch_train_loss)
         train_losses.append(avg_loss_after_epoch)
-        print(f"Train loss value: {avg_loss_after_epoch}")
+
+        # training logging
+        train_loss_str = f"Epoch {epoch+1} train loss: {avg_loss_after_epoch:.4f}"
+        logger.info(train_loss_str)
+        print(train_loss_str)
 
 
         ## Validation
@@ -6121,9 +6139,9 @@ def train():
             batch_data, label_data = [], []
             # batch_idx is the dump number
             for batch_idx in batch_indexes:
+                start = time.time()
                 ## get data frame
                 # get data into global context
-                rblock_new(batch_idx)
                 rpar_new(batch_idx)
                 rgdump_griddata(dumps_path)
                 rdump_griddata(dumps_path, batch_idx)
@@ -6134,7 +6152,6 @@ def train():
 
                 ## get label frame
                 # get data into global context
-                rblock_new(batch_idx+1)
                 rpar_new(batch_idx+1)
                 rgdump_griddata(dumps_path)
                 rdump_griddata(dumps_path, batch_idx+1)
@@ -6154,17 +6171,30 @@ def train():
             loss_value = loss_fn(pred, label_data)
             epoch_valid_loss.append(loss_value)
             
-            prog_bar.set_description(f'Validation batch {batch_num+1} completed with loss {loss_value.item():.4f}.')
+            # validation batch logging
+            validation_str = f'Epoch {epoch+1} validation batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s.'
+            prog_bar.set_description(validation_str)
             
         avg_vloss_after_epoch = sum(epoch_train_loss)/len(epoch_train_loss)
         valid_losses.append(avg_vloss_after_epoch)
-        print(f"Valid loss value: {avg_loss_after_epoch}")
+
+        # validation logging
+        validation_loss_str = f"Epoch {epoch+1} valid loss value: {avg_loss_after_epoch:.4f}"
+        print(validation_loss_str)
+        logger.info(validation_loss_str)
 
         # checkpointing
         if avg_vloss_after_epoch < best_validation:
             best_validation = avg_vloss_after_epoch
-            save_path = os.environ['HOME'] + '/harm2d/bh/' + model.save_path
+            save_path = os.environ['HOME'] + '/bh/harm2d/' + model.save_path
             model.save(save_path=save_path)
+
+    ## pickle training and validation loss (for external plotting)
+    workdir = os.environ['HOME']+'/bh/harm2d/'
+    with open(workdir+'train_losses.pkl', 'wb') as f:
+        pickle.dump(train_losses, f)
+    with open(workdir+'valid_losses.pkl', 'wb') as f:
+        pickle.dump(valid_losses, f)
 
 if __name__ == "__main__":
 
@@ -6172,6 +6202,7 @@ if __name__ == "__main__":
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
 
+    # train model on initialization
     train()
 
 

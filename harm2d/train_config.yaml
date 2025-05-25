@@ -1,0 +1,7 @@
+# number of dumps for training and validation
+num_dumps: 10
+# number of times one loops over the data
+num_epochs: 2
+# number of data points per gradient update
+batch_size: 2
+
