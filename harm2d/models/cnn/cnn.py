@@ -131,7 +131,7 @@ class CNN_3D(nn.Module):
         # model information and metadata
         self.name = name
         self.version_num = version_str
-        self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
+        self.save_path = f'harm2d/models/cnn/saves/{self.name}_{self.version_num}.pth'
         # middle - most latent dimension
         self.latent_dim = 3 * 5 * 5
 

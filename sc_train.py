@@ -75,28 +75,7 @@ def setup():
     run_build_command('setup.py', build_ext_args)
 
     # Run the pp.py command
-    run_build_command('pp.py', build_ext_args)
-
-    # set params
-    lowres1 = 1 # 
-    lowres2 = 1 # 
-    lowres3 = 1 # 
-    r_min, r_max = 1.0, 100.0
-    theta_min, theta_max = 0.0, 9
-    phi_min, phi_max = -1, 9
-    do_box=0
-    set_cart=0
-    # set_mpi(0)
-    axisym=1
-    print_fieldlines=0
-    export_raytracing_GRTRANS=0
-    export_raytracing_RAZIEH=0
-    kerr_schild=0
-    DISK_THICKNESS=0.03
-    check_files=1
-    notebook=1
-    interpolate_var=0
-    AMR = 0 # get all data in grid
+    run_build_command('pp.py', build_ext_args + ['--train'])
 
     print('Imports and setup done.')
 
