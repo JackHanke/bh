@@ -487,8 +487,8 @@ if __name__ == '__main__':
         
     tot_start = time.time()
     ## NOTE replaces rblock_new call entirely
-    with open(\"gdumps/grid\", \"rb\") as fin:
-        size = os.path.getsize(\"gdumps/grid\")
+    with open("gdumps/grid", "rb") as fin:
+        size = os.path.getsize("gdumps/grid")
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
         gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
