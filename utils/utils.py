@@ -325,6 +325,7 @@ def read_dump_util_sc(
 
     return dump_dict
 
+# arjun's
 def rblock_new_opt(dump):
     global AMR_ACTIVE, AMR_LEVEL,AMR_LEVEL1,AMR_LEVEL2,AMR_LEVEL3, AMR_REFINED, AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT
     global AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8
@@ -469,6 +470,40 @@ def rblock_new_opt(dump):
 if __name__ == '__main__':
     # _, dump_dict = read_dump_util(dump='dump000')
     _, dump_dict = read_dump_util(path_to_dumps='/pscratch/sd/l/lalakos/ml_data_rc300',dump='dump000')
-
     # rho_val = dump_dict['rho']
     # print(f'rho variable for this dump: {rho_val}')
+
+
+
+    ## NOTE compare rblock_new with custom grid read
+    tot_start = time.time()
+    for dump in [0, 500, 43, 762, 1001]:
+        print(f'-----dump {dump}-----')
+        start = time.time()
+        rblock_new(dump=dump)
+        print(f'Total rblock_new: {time.time()-start:.3f} s')
+    print(f'Total of 5 dumps with : {time.time()-tot_start:.3f} s')
+    print(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+        
+    tot_start = time.time()
+    ## NOTE replaces rblock_new call entirely
+    with open(\"gdumps/grid\", \"rb\") as fin:
+        size = os.path.getsize(\"gdumps/grid\")
+        nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
+        NV = (size - 1) // nmax // 4
+        gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
+        gd = gd.reshape((NV, nmax), order='F').T
+        start = time.time()
+        block[:,0:NV] = gd
+        if(NV<170):
+            block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
+            block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
+            block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
+
+        i = 0
+    for dump in [1, 501, 44, 763, 1002]:
+        print(f'-----dump {dump}-----')
+        start = time.time()
+        print(f'Total rblock_new: {time.time()-start:.3f} s')
+
+    print(f'Total of 5 dumps with : {time.time()-tot_start:.3f} s')
