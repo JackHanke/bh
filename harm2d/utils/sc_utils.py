@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import os
 
 # returns random selection of dump incides
 def custom_batcher(
@@ -123,7 +124,7 @@ def rblock_new_ml():
         size = os.path.getsize("gdumps/grid")
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
-        end = time.time()
+        # end = time.time()
         # print(f"End of elif: {end - start}")
         
     else:
@@ -138,7 +139,7 @@ def rblock_new_ml():
         n_ord = np.zeros((nmax), dtype=np.int32, order='C')
         gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
         gd = gd.reshape((NV, nmax), order='F').T
-        start = time.time()
+        # start = time.time()
         block[:,0:NV] = gd
         if(NV<170):
             block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
