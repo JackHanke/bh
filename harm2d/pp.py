@@ -5830,6 +5830,8 @@ def post_process(dir, dump_start, dump_end, dump_stride):
                 os.remove(dir + "/post_process_but%d.txt" % i)
             f_tot_but.close()
 
+## MSAI work starts here
+
 # system imports
 import os
 import sys
@@ -5843,15 +5845,20 @@ import numpy as np
 from tqdm import tqdm
 
 # training utilities
-from utils.sc_utils import custom_batcher, tensorize_globals
+from utils.sc_utils import custom_batcher, tensorize_globals, rblock_new_ml
 from models.cnn.cnn import CNN_3D
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    filename='training.log', 
+    filemode='w', 
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 
 # training script
 def train():
-    # from harm2d.pp import rgdump_griddata
-    # from harm2d.pp import *
-    # import harm2d.pp as locpp
 
     # path to dumps
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
@@ -5889,23 +5896,10 @@ def train():
 
     best_validation = float('inf')
 
-    # rblock_new replacement, improves performance
-    global block, nmax, n_ord, AMR_TIMELEVEL
-    with open("gdumps/grid", "rb") as fin:
-        size = os.path.getsize("gdumps/grid")
-        nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-        NV = (size - 1) // nmax // 4
-        block = np.zeros((nmax, 200), dtype=np.int32, order='C')
-        n_ord = np.zeros((nmax), dtype=np.int32, order='C')
-        gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
-        gd = gd.reshape((NV, nmax), order='F').T
-        start = time.time()
-        block[:,0:NV] = gd
-        if(NV<170):
-            block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
-            block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
-            block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
+    # rewrite for performance
+    rblock_new_ml()
 
+    # get grid data
     rgdump_griddata(dumps_path)
 
     for epoch in range(num_epochs):
@@ -6037,4 +6031,5 @@ if __name__ == "__main__":
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
 
+    # TODO make conditional for this
     train()

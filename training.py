@@ -5,15 +5,6 @@ import subprocess
 import logging
 import time
 
-# training imports
-import torch
-import numpy as np
-from tqdm import tqdm
-
-# training utilities
-from utils.sc_utils import custom_batcher, tensorize_globals
-from models.cnn.cnn import CNN_3D
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     filename='training.log', 
@@ -111,17 +102,10 @@ def setup():
 
     print("\nAll build commands completed successfully.")
 
-    # train()
-
 
 if __name__ == "__main__":
-    # setup environment
+    # setup environment, which also trains with a given flag
     setup()
 
-    # train model
-
-    # train()
-
-    # 
 
 
