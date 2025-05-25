@@ -5833,10 +5833,12 @@ def post_process(dir, dump_start, dump_end, dump_stride):
 ## MSAI work starts here
 
 # train if argument passed
-parser = argparse.ArgumentParser()
-parser.add_argument('-t', '--train', type=bool, help='Do MSAI ML training', default=False)
-args = parser.parse_args()
-do_train = args.train
+# import argparse
+# parser = argparse.ArgumentParser()
+# parser.add_argument('-t', '--train', type=bool, help='Do MSAI ML training', default=False)
+# args = parser.parse_args()
+# do_train = args.train
+do_train = True
 
 if do_train:
 
@@ -5851,7 +5853,6 @@ if do_train:
     import torch
     import numpy as np
     from tqdm import tqdm
-    import argparse
 
     # training utilities
     from utils.sc_utils import custom_batcher, tensorize_globals
@@ -6162,14 +6163,15 @@ def train():
         # checkpointing
         if avg_vloss_after_epoch < best_validation:
             best_validation = avg_vloss_after_epoch
-            save_path = os.environ['HOME'] + '/bh/' + model.save_path
+            save_path = os.environ['HOME'] + '/harm2d/bh/' + model.save_path
             model.save(save_path=save_path)
-
-    train()
-
 
 if __name__ == "__main__":
 
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
+
+    train()
+
+

@@ -233,8 +233,8 @@ harmpi/buggydumps
 harmpi/films
 
 # model save directories
-models/*/saves/*
-!models/*/saves/.gitkeep
+harm2d/models/*/saves/*
+!harm2d/models/*/saves/.gitkeep
 
 # bitbucket token
 bitbucket.txt

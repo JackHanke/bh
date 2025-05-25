@@ -75,11 +75,9 @@ def setup():
     run_build_command('setup.py', build_ext_args)
 
     # Run the pp.py command
-    run_build_command('pp.py', build_ext_args + ['--train'])
+    run_build_command('pp.py', build_ext_args)
 
-    print('Imports and setup done.')
-
-    print("\nAll build commands completed successfully.")
+    print("\n Training completed.")
 
 
 if __name__ == "__main__":
