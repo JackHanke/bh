@@ -746,6 +746,7 @@ def rgdump_griddata(dir):
     global nb1, nb2, nb3, REF_1, REF_2, REF_3
     global startx1,startx2,startx3,_dx1,_dx2,_dx3, export_raytracing_RAZIEH
     global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, rank, gridsizex1, gridsizex2, gridsizex3, check_files
+    global block, nmax, n_ord, AMR_TIMELEVEL
     import pp_c
 
     set_cart=0

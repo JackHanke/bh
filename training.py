@@ -3,6 +3,7 @@ import os
 import sys
 import subprocess
 import logging
+import time
 
 # training imports
 import torch
@@ -112,6 +113,8 @@ def setup():
 
 # training script
 def train():
+    from harm2d.pp import rgdump_griddata
+
     # path to dumps
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
     os.chdir(dumps_path)
@@ -146,11 +149,14 @@ def train():
 
     best_validation = float('inf')
 
-    rgdump_griddata(dumps_path)
+    # rblock_new replacement, improves performance
+    global block, nmax, n_ord, AMR_TIMELEVEL
     with open("gdumps/grid", "rb") as fin:
         size = os.path.getsize("gdumps/grid")
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
+        block = np.zeros((nmax, 200), dtype=np.int32, order='C')
+        n_ord = np.zeros((nmax), dtype=np.int32, order='C')
         gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
         gd = gd.reshape((NV, nmax), order='F').T
         start = time.time()
@@ -159,6 +165,8 @@ def train():
             block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
             block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
             block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
+
+    rgdump_griddata(dumps_path)
 
     for epoch in range(num_epochs):
         ## Training
