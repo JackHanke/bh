@@ -3866,7 +3866,7 @@ def dump_visit_binary(dir, dump, radius):
         evtk.hl.gridToVTK("./data_binary%dn%d" % (dump, n), pts[...,0], pts[...,1], pts[...,2], pointData = {"density" : rho[n, 0:ilim]})
 
 
-def set_mpi(cluster):
+def set_mpi(cluster = 0):
     global comm, numtasks, rank,setmpi
 
     if (cluster == 1):

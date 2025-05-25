@@ -59,12 +59,13 @@ def setup():
     global axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
     global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
     global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
+    global set_mpi
 
     """
     Main function to execute the build commands.
     """
     # change to home
-    harm_directory = os.chdir(os.environ['HOME'] + '/bh/hapm2d')
+    harm_directory = os.environ['HOME'] + '/bh/harm2d'
     os.chdir(harm_directory)
 
     # Define the arguments for the build command
@@ -93,7 +94,7 @@ def setup():
     phi_min, phi_max = -1, 9
     do_box=0
     set_cart=0
-    set_mpi(0)
+    # set_mpi(0)
     axisym=1
     print_fieldlines=0
     export_raytracing_GRTRANS=0
