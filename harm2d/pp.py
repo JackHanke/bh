@@ -5868,7 +5868,7 @@ def train():
     # access device, cuda device if accessible
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    logging.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size}.')
+    logging.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size} on device{device}.')
 
     # set model
     model = CNN_3D().to(device)
@@ -5906,7 +5906,7 @@ def train():
             block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
             block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
 
-    locpp.rgdump_griddata(dumps_path)
+    rgdump_griddata(dumps_path)
 
     for epoch in range(num_epochs):
         ## Training
@@ -6036,3 +6036,5 @@ if __name__ == "__main__":
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
+
+    train()

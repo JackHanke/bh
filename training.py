@@ -111,12 +111,15 @@ def setup():
 
     print("\nAll build commands completed successfully.")
 
+    # train()
+
 
 if __name__ == "__main__":
     # setup environment
     setup()
 
     # train model
+
     # train()
 
     # 
