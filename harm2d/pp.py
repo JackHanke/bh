@@ -5849,6 +5849,7 @@ if do_train:
     import logging
     import time
     import pickle
+    import yaml
 
     # training imports
     import torch
@@ -5859,6 +5860,12 @@ if do_train:
     # training utilities
     from utils.sc_utils import custom_batcher, tensorize_globals
     from models.cnn.cnn import CNN_3D, CNN_DEPTH
+
+    # distributed training
+    import torch.distributed as dist  # NEW: Import for distributed training
+    import torch.multiprocessing as mp  # NEW: Import for multiprocessing
+    from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
+    from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
     # set params
     lowres1 = 1 # 
@@ -5990,7 +5997,6 @@ if do_train:
                 block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
                 block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
                 block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
-
 
 # training script
 def train():
@@ -6197,11 +6203,136 @@ def train():
     with open(workdir+'valid_losses.pkl', 'wb') as f:
         pickle.dump(valid_losses, f)
 
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+def cleanup():
+    dist.destroy_process_group()
+
+def main_worker(rank, world_size):
+    setup(rank, world_size)
+    torch.cuda.set_device(rank)
+    device = torch.device(f'cuda:{rank}')
+    
+    if rank == 0:
+        logging.basicConfig(filename='training.log', filemode='w', level=logging.DEBUG)
+
+    with open('train_config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+    dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
+    os.chdir(dumps_path)
+
+    # Setup model
+    model = CNN_DEPTH().to(device)
+    model = DDP(model, device_ids=[rank])
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters())
+
+    num_dumps = config['num_dumps']
+    batch_size = config['batch_size']
+    num_epochs = config['num_epochs']
+
+    # I'm expecting this to break when the batch_size changes, if it does try changes the `split` argument
+    train_idxs, valid_idxs = custom_batcher(batch_size, num_dumps, split=0.8, seed=1)
+
+    # distributedsampler to shared data across GPUs 
+    train_sampler = DistributedSampler(train_idxs, num_replicas=world_size, rank=rank, shuffle=True)
+    valid_sampler = DistributedSampler(valid_idxs, num_replicas=world_size, rank=rank, shuffle=False)
+
+    best_val_loss = float('inf')
+    train_losses, valid_losses = [], []
+
+    rblock_new_ml()
+    
+    ## Training
+    for epoch in range(num_epochs):
+        model.train()
+        train_sampler.set_epoch(epoch)
+        epoch_train_loss = []
+
+        train_batches = torch.utils.data.DataLoader(train_idxs, batch_size=batch_size, sampler=train_sampler)
+        for batch_indexes in tqdm(train_batches, disable=rank != 0):
+            batch_data, label_data = [], []
+            for idx in batch_indexes:
+                idx = idx.item()
+                rpar_new(idx)
+                rgdump_griddata(dumps_path)
+                rdump_griddata(dumps_path, idx)
+                batch_data.append(tensorize_globals(rho=rho, ug=ug, uu=uu, B=B))
+                rpar_new(idx+1)
+                rdump_griddata(dumps_path, idx+1)
+                label_data.append(tensorize_globals(rho=rho, ug=ug, uu=uu, B=B))
+
+            batch_data = torch.cat(batch_data).to(device)
+            label_data = torch.cat(label_data).to(device)
+
+            optimizer.zero_grad()
+            pred = model(batch_data)
+            loss = loss_fn(pred, label_data)
+            loss.backward()
+            optimizer.step()
+            epoch_train_loss.append(loss.item())
+
+        train_loss_avg = sum(epoch_train_loss)/len(epoch_train_loss)
+        if rank == 0:
+            logging.info(f"Epoch {epoch+1} train loss: {train_loss_avg:.4f}")
+            train_losses.append(train_loss_avg)
+
+        ## Validation
+        model.eval()
+        epoch_valid_loss = []
+        with torch.no_grad():
+            valid_batches = torch.utils.data.DataLoader(valid_idxs, batch_size=batch_size, sampler=valid_sampler)
+            for batch_indexes in tqdm(valid_batches, disable=rank != 0):
+                batch_data, label_data = [], []
+                for idx in batch_indexes:
+                    idx = idx.item()
+                    rpar_new(idx)
+                    rgdump_griddata(dumps_path)
+                    rdump_griddata(dumps_path, idx)
+                    batch_data.append(tensorize_globals(rho=rho, ug=ug, uu=uu, B=B))
+                    rpar_new(idx+1)
+                    rdump_griddata(dumps_path, idx+1)
+                    label_data.append(tensorize_globals(rho=rho, ug=ug, uu=uu, B=B))
+                batch_data = torch.cat(batch_data).to(device)
+                label_data = torch.cat(label_data).to(device)
+
+                pred = model(batch_data)
+                loss = loss_fn(pred, label_data)
+                epoch_valid_loss.append(loss.item())
+
+        val_loss_avg = sum(epoch_valid_loss)/len(epoch_valid_loss)
+        if rank == 0:
+            logging.info(f"Epoch {epoch+1} validation loss: {val_loss_avg:.4f}")
+            valid_losses.append(val_loss_avg)
+
+            # Save best model on rank 0
+            if val_loss_avg < best_val_loss:
+                best_val_loss = val_loss_avg
+                model.module.save(os.environ['HOME'] + '/bh/harm2d/' + model.module.save_path)
+
+    # Save training stats
+    if rank == 0:
+        with open(os.environ['HOME']+'/bh/harm2d/train_losses.pkl', 'wb') as f:
+            pickle.dump(train_losses, f)
+        with open(os.environ['HOME']+'/bh/harm2d/valid_losses.pkl', 'wb') as f:
+            pickle.dump(valid_losses, f)
+
+    cleanup()
+
 if __name__ == "__main__":
 
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
 
-    # train model on initialization
-    train()
+    world_size = torch.cuda.device_count()
+    
+    if world_size > 1:
+        print(f"Starting distributed training on {world_size} GPUs")
+        mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
+    else:
+        print("Starting single GPU training")
+        train()
