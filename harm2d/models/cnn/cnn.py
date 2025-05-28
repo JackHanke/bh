@@ -224,6 +224,98 @@ class Jack_CNN_3D(nn.Module):
         size_all_mb = (param_size + buffer_size) / 1024**2
         return size_all_mb
 
+##########################################################################################
+# Arjun's 3D CNN
+class CNN_DEPTH(nn.Module):
+    def __init__(self, input_channels: int = 8):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv3d(in_channels=input_channels, out_channels=input_channels, kernel_size=3, groups=input_channels),
+            nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=1),
+            nn.GELU(),
+            nn.Conv3d(in_channels=32, out_channels=32, kernel_size=3, groups=32),
+            nn.Conv3d(in_channels=32, out_channels=64, kernel_size=1),
+            nn.GELU(),
+            nn.Conv3d(in_channels=64, out_channels=64, kernel_size=3, stride= 2, padding=1, groups=64),
+            nn.Conv3d(in_channels=64, out_channels=128, kernel_size=1),
+            nn.GELU(),
+            nn.Conv3d(in_channels=128, out_channels=128, kernel_size=3, stride= 2, padding=1, groups=64),
+            nn.Conv3d(in_channels=128, out_channels=256, kernel_size=1),
+            nn.GELU(),
+            nn.Conv3d(in_channels=256, out_channels=256, kernel_size=3, stride= 2, padding=1, groups=64),
+            nn.Conv3d(in_channels=256, out_channels=512, kernel_size=1),
+            nn.GELU(),
+            nn.Conv3d(in_channels=512, out_channels=512, kernel_size=3, stride= 2, padding=1, groups=64),
+            nn.Conv3d(in_channels=512, out_channels=1024, kernel_size=1),
+            nn.GELU(),
+            )
+
+        self.bottleneck_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(1024 * 14 * 3 * 6, 2048),
+            nn.GELU(),
+            nn.Linear(2048, 1024 * 14 * 3 * 6),
+            nn.Unflatten(1, (1024, 14, 3, 6)),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose3d(in_channels=1024, out_channels=512, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
+            nn.ConvTranspose3d(in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
+            nn.ConvTranspose3d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
+            nn.ConvTranspose3d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
+            nn.Conv3d(in_channels=64, out_channels=8, kernel_size=1)
+            )
+        
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.bottleneck_layers(x)
+        x = self.decoder(x)
+        return x
+        
+    # encode raw x
+    def encode(self, x):
+        return self.encoder(x)
+
+    # decode latent x
+    def decode(self, x):
+        return self.decoder(x)
+
+    # bottleneck layer
+    def bottleneck(self, x):
+        return self.bottleneck_layers(x)
+    
+    @torch.no_grad()
+    def inference(self, x):
+        return self.forward(x)
+    
+    def save(self, save_path:str = None):
+        if save_path is None:
+            torch.save(self.state_dict(), self.save_path)
+            print(f'Saved model as {self.save_path}')
+        else:
+            torch.save(self.state_dict(), save_path)
+            print(f'Saved model as {save_path}')
+
+    def num_params(self):
+        return sum(p.numel() for p in self.parameters())
+
+    def size_in_memory(self):
+        param_size = 0
+        for param in self.parameters():
+            param_size += param.nelement() * param.element_size()
+
+        buffer_size = 0
+        for buffer in self.buffers():
+            buffer_size += buffer.nelement() * buffer.element_size()
+
+        size_all_mb = (param_size + buffer_size) / 1024**2
+        return size_all_mb
+
+##########################################################################################
 
 class ResidualBlock3D(nn.Module):
     def __init__(self, in_channels):

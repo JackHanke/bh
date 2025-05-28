@@ -5858,7 +5858,7 @@ if do_train:
 
     # training utilities
     from utils.sc_utils import custom_batcher, tensorize_globals
-    from models.cnn.cnn import CNN_3D
+    from models.cnn.cnn import CNN_3D, CNN_DEPTH
 
     # set params
     lowres1 = 1 # 
@@ -6029,7 +6029,8 @@ def train():
     logger.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size} on {device} device.')
 
     # set model
-    model = CNN_3D().to(device)
+    # model = CNN_3D().to(device)
+    model = CNN_DEPTH().to(device)
     summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
     logger.info('\n'+str(summary_str))
 
@@ -6204,5 +6205,3 @@ if __name__ == "__main__":
 
     # train model on initialization
     train()
-
-
