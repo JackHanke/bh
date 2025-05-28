@@ -227,8 +227,14 @@ class Jack_CNN_3D(nn.Module):
 ##########################################################################################
 # Arjun's 3D CNN
 class CNN_DEPTH(nn.Module):
-    def __init__(self, input_channels: int = 8):
+    def __init__(self, input_channels: int = 8, name: str = "Arjun's 3d CNN with Depthwise separable convolution", version_str: str = 'v0.0.0'):
         super().__init__()
+
+        # model information and metadata
+        self.name = name
+        self.version_num = version_str
+        self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
+        
         self.encoder = nn.Sequential(
             nn.Conv3d(in_channels=input_channels, out_channels=input_channels, kernel_size=3, groups=input_channels),
             nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=1),
