@@ -6031,14 +6031,19 @@ def train():
     batch_size = config['batch_size']
     # number of epochs
     num_epochs = config['num_epochs']
+    # get range of dumps, from start inclusive to end exclusive
+    start_dump = config['start_dump']
+    end_dump = config['end_dump']
     # access device, cuda device if accessible
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    logger.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size} on {device} device.')
+    training_hyperparams_str = f'Training on dumps {start_dump} - {end_dump} for {num_epochs} epochs at batch size = {batch_size} on {device} device.'
+    print(training_hyperparams_str)
+    logger.info(training_hyperparams_str)
 
     # set model
-    model = JACK_CNN_3D().to(device)
-    # model = CNN_DEPTH().to(device)
+    # model = JACK_CNN_3D().to(device)
+    model = CNN_DEPTH().to(device)
     # model = CNN_DEPTH().to(device)
     summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
     logger.info('\n'+str(summary_str))
@@ -6053,8 +6058,8 @@ def train():
         num_dumps=num_dumps,
         split = 0.8,
         seed=1,
-        start=3000,
-        end=3050,
+        start=start_dump,
+        end=end_dump,
     )
 
     num_train_batches = len(train_indexes)//batch_size

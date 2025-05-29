@@ -4,4 +4,7 @@ num_dumps: 50
 num_epochs: 10
 # number of data points per gradient update
 batch_size: 2
-
+# start dump number to train on
+start_dump: 3000
+# end dump to train on 
+end_dump: 7000

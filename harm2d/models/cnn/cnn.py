@@ -119,7 +119,7 @@ class miniCNN(nn.Module):
 
         buffer_size = 0
         for buffer in self.buffers():
-            buffer_size += buffer.nelement() * buffer.element_size()
+            buffer_size += buffer.nelement() *  buffer.element_size()
 
         size_all_mb = (param_size + buffer_size) / 1024**2
         return size_all_mb
