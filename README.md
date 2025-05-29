@@ -13,6 +13,7 @@
 
 To setup environment, run the following:
 ```
+module load conda
 conda env create -f scenv.yaml
 conda activate scenv
 python -m ipykernel install --user --name scenv --display-name scenvkernel
