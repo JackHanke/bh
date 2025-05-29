@@ -126,7 +126,7 @@ class miniCNN(nn.Module):
 
 # the 3D CNN for full 3 dimensional bh emulation
 #Jack's 3dcnn
-class Jack_CNN_3D(nn.Module):
+class JACK_CNN_3D(nn.Module):
     def __init__(self, input_channels: int = 8, name: str = '3dcnn', version_str: str = 'v0.0.0'):
         super().__init__()
         # model information and metadata

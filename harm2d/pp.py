@@ -5970,7 +5970,7 @@ if do_train:
 
     # training utilities
     from utils.sc_utils import custom_batcher, tensorize_globals
-    from models.cnn.cnn import CNN_3D, CNN_DEPTH
+    from models.cnn.cnn import *
 
     # distributed training
     import torch.distributed as dist  # NEW: Import for distributed training
@@ -6037,8 +6037,9 @@ def train():
     logger.info(f'Training on {num_dumps} dumps for {num_epochs} epochs at batch size = {batch_size} on {device} device.')
 
     # set model
-    # model = CNN_3D().to(device)
-    model = CNN_DEPTH().to(device)
+    model = JACK_CNN_3D().to(device)
+    # model = CNN_DEPTH().to(device)
+    # model = CNN_DEPTH().to(device)
     summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
     logger.info('\n'+str(summary_str))
 
@@ -6124,6 +6125,10 @@ def train():
             # update paramts
             optim.step()
 
+            # memory save maybe idk
+            batch_data = None
+            label_data = None
+
             # training batch logging
             batch_str = f'Epoch {epoch+1} train batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s'
             prog_bar.set_description(batch_str)
@@ -6186,7 +6191,7 @@ def train():
             validation_str = f'Epoch {epoch+1} validation batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s.'
             prog_bar.set_description(validation_str)
             
-        avg_vloss_after_epoch = sum(epoch_train_loss)/len(epoch_train_loss)
+        avg_vloss_after_epoch = sum(epoch_valid_loss)/len(epoch_valid_loss)
         valid_losses.append(avg_vloss_after_epoch)
 
         # validation logging
@@ -6230,7 +6235,7 @@ def main_worker(rank, world_size):
 
     # Setup model
     model = CNN_DEPTH().to(device)
-    model = DDP(model, device_ids=[rank])
+    # model = DDP(model, device_ids=[rank])
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters())
 
@@ -6374,7 +6379,6 @@ if __name__ == "__main__":
     ## NOTE training
 
     world_size = torch.cuda.device_count()
-    
     if world_size > 1:
         print(f"Starting distributed training on {world_size} GPUs")
         mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
