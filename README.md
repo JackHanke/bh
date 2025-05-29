@@ -21,6 +21,8 @@ python -m ipykernel install --user --name scenv --display-name scenvkernel
 
 Then refresh your browser window, and then click on the `scenvkernel` kernel to run the `sc_workspace.ipynb`.
 
+For `ffmpeg` rendering on Perlmutter, follow [this blogpost](https://xiaocanli.github.io/blog/2023/ffmpeg-perlmutter/https://xiaocanli.github.io/blog/2023/ffmpeg-perlmutter/)
+
 ## Project TODOs
 - training scripts
   - external logging

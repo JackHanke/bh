@@ -5950,7 +5950,7 @@ def rblock_new_ml():
             block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
 
 
-do_train = False
+do_train = True
 if do_train:
 
     # system imports
@@ -6051,7 +6051,9 @@ def train():
         batch_size=batch_size,
         num_dumps=num_dumps,
         split = 0.8,
-        seed=1
+        seed=1,
+        start=3000,
+        end=3050,
     )
 
     num_train_batches = len(train_indexes)//batch_size
@@ -6371,18 +6373,18 @@ if __name__ == "__main__":
 
     ## NOTE training
 
-    # world_size = torch.cuda.device_count()
+    world_size = torch.cuda.device_count()
     
-    # if world_size > 1:
-    #     print(f"Starting distributed training on {world_size} GPUs")
-    #     mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
-    # else:
-    #     print("Starting single GPU training")
-    #     train()
+    if world_size > 1:
+        print(f"Starting distributed training on {world_size} GPUs")
+        mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
+    else:
+        print("Starting single GPU training")
+        train()
 
     # 
-    save_path = os.environ['HOME']+f'/bh/movies/sc_frames/'
-    plot_and_save_range(start=3000, end=3050, save_path=save_path)
+    # save_path = os.environ['HOME']+f'/bh/movies/sc_frames/'
+    # plot_and_save_range(start=3000, end=3050, save_path=save_path)
     # 
 
 

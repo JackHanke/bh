@@ -18,7 +18,7 @@ def custom_batcher(
         indexes = np.arange(num_dumps)
     else:
         # if only training on some portion of dumps, use line below:
-        indexes = np.arange(start = start, end=end)
+        indexes = np.arange(start=start, stop=end)
     
     np.random.shuffle(indexes)
     # get split
