@@ -5838,7 +5838,7 @@ def post_process(dir, dump_start, dump_end, dump_stride):
 # parser.add_argument('-t', '--train', type=bool, help='Do MSAI ML training', default=False)
 # args = parser.parse_args()
 # do_train = args.train
-do_train = True
+do_train = False
 
 if do_train:
 
@@ -6322,17 +6322,51 @@ def main_worker(rank, world_size):
 
     cleanup()
 
+# plot and save range of dumps between start and end, save to save_path
+def plot_and_save_range(start: int, end: int, save_path: str):
+    # rewrite for performance
+    rblock_new_ml()
+
+    indexes = np.arange(start=start, end=end)
+    for index in indexes:
+        # get dumps and grid data
+        rpar_new(index)
+        rgdump_griddata(dumps_path)
+        rdump_griddata(dumps_path, index)
+
+        # plot and save
+        do_save = 1
+        plc_cart(
+            var=(rho), 
+            min=-2,
+            max=2, 
+            rmax=100, 
+            offset=0, 
+            name=save_path+f'rho_{index}', 
+            label=r"$\sigma r {\rm sin}\theta$ at %d $r_g/c$" % t
+        )
+
 if __name__ == "__main__":
 
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
 
-    world_size = torch.cuda.device_count()
+    ## NOTE training
+
+    # world_size = torch.cuda.device_count()
     
-    if world_size > 1:
-        print(f"Starting distributed training on {world_size} GPUs")
-        mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
-    else:
-        print("Starting single GPU training")
-        train()
+    # if world_size > 1:
+    #     print(f"Starting distributed training on {world_size} GPUs")
+    #     mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
+    # else:
+    #     print("Starting single GPU training")
+    #     train()
+
+    # 
+    save_path = os.environ['HOME']+f'movies/sc_frames'
+    plot_and_save_range(start=3000, end=3050, save_path=save_path)
+    # 
+
+
+

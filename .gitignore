@@ -241,3 +241,6 @@ bitbucket.txt
 
 harm2d/plotting
 data.pkl
+
+movies/sc_frames/*
+!movies/sc_frames/.gitkeep

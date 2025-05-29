@@ -7,14 +7,18 @@ def custom_batcher(
         batch_size: int, 
         num_dumps: int, 
         split: float = 0.8, 
-        seed: int = None
+        seed: int = None,
+        start: int = None,
+        end: int = None,
     ):
     # randomize what data is trained on
     if seed is not None: np.random.seed(seed)
     # randomize data
-    indexes = np.arange(num_dumps)
-    # TODO if only training on some portion of dumps, use line below:
-    # indexes = np.arange(start = start_dump, end=end_dump)
+    if start is None and end is None:
+        indexes = np.arange(num_dumps)
+    else:
+        # if only training on some portion of dumps, use line below:
+        indexes = np.arange(start = start, end=end)
     
     np.random.shuffle(indexes)
     # get split
