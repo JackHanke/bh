@@ -244,3 +244,5 @@ data.pkl
 
 movies/sc_frames/*.png
 !movies/sc_frames/.gitkeep
+movies/sc_pred_frames/*.png
+!movies/sc_pred_frames/.gitkeep
