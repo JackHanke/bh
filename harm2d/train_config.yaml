@@ -1,10 +1,10 @@
 # number of dumps for training and validation
 num_dumps: 50
 # number of times one loops over the data
-num_epochs: 10
+num_epochs: 2
 # number of data points per gradient update
 batch_size: 2
 # start dump number to train on
 start_dump: 3000
 # end dump to train on 
-end_dump: 7000
+end_dump: 3010

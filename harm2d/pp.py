@@ -6237,20 +6237,42 @@ def main_worker(rank, world_size):
         config = yaml.safe_load(f)
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
     os.chdir(dumps_path)
-
-    # Setup model
-    model = CNN_DEPTH().to(device)
-    # model = DDP(model, device_ids=[rank])
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters())
-
+    
     num_dumps = config['num_dumps']
     batch_size = config['batch_size']
     num_epochs = config['num_epochs']
+    start_dump = config['start_dump']
+    end_dump = config['end_dump']
+
+    print(num_dumps)
+    
+    # Setup model
+    model = CNN_DEPTH().to(device)
+    model = DDP(model, device_ids=[rank])
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters())
+    # summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
+    # if rank == 0:
+    #     logger.info('\n'+str(summary_str))
+    
+
+    training_hyperparams_str = f'Training on dumps {start_dump} - {end_dump} for {num_epochs} epochs at batch size = {batch_size} on {device} device.'
+    # print(training_hyperparams_str)
+    if rank == 0:
+        logger.info(training_hyperparams_str)
 
     # I'm expecting this to break when the batch_size changes, if it does try changes the `split` argument
-    train_idxs, valid_idxs = custom_batcher(batch_size, num_dumps, split=0.8, seed=1)
 
+    # get indexes for training data
+    train_idxs, valid_idxs = custom_batcher(
+        batch_size=batch_size,
+        num_dumps=num_dumps,
+        split = 0.8,
+        seed=1,
+        start=start_dump,
+        end=end_dump,
+    )
+    
     # distributedsampler to shared data across GPUs 
     train_sampler = DistributedSampler(train_idxs, num_replicas=world_size, rank=rank, shuffle=True)
     valid_sampler = DistributedSampler(valid_idxs, num_replicas=world_size, rank=rank, shuffle=False)
