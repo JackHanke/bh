@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torchinfo import summary
 
 # various models 
 
@@ -113,39 +114,41 @@ class B3_CNN(nn.Module):
         # model information and metadata
         self.name = name
         self.version_num = version_str
+        self.class_name = 'B3_CNN'
         self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
+        self.latent_dim = 2048
         # track best validation for multiple training sessions
         self.best_val_seen = float('inf')
 
-        # architecture
-        self.encoder = nn.Sequential(
-            nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=3),
-            nn.GELU(),
-            nn.Conv3d(in_channels=32, out_channels=64, kernel_size=3),
-            nn.GELU(),
-            nn.Conv3d(in_channels=64, out_channels=128, kernel_size=3),
-            nn.GELU(),
-            nn.Conv3d(in_channels=128, out_channels=256, kernel_size=3),
-            nn.GELU(),
-            nn.Conv3d(in_channels=256, out_channels=512, kernel_size=3),
-            nn.GELU(),
-            )
+        ## architecture
 
-        self.bottleneck_layers = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(512 * 14 * 3 * 6, 512),
+        # encoder
+        self.encoder = nn.Sequential(
+            nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.MaxPool3d(2, stride=2),
             nn.GELU(),
-            nn.Linear(512, 512 * 14 * 3 * 6),
-            nn.Unflatten(1, (1024, 14, 3, 6)),
+            nn.Conv3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.MaxPool3d(2, stride=2),
+            nn.GELU(),
         )
 
+        # bottleneck
+        self.bottleneck_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 14 * 3 * 6, self.latent_dim),
+            nn.GELU(),
+            nn.Linear(self.latent_dim, 64 * 14 * 3 * 6),
+            nn.Unflatten(1, (64, 14, 3, 6)),
+        )
+        
+        # decoder
         self.decoder = nn.Sequential(
-            nn.ConvTranspose3d(in_channels=512, out_channels=256, kernel_size=4, stride=2, padding=1),
+            nn.Upsample(scale_factor=2, mode='trilinear'),
+            nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
-            nn.ConvTranspose3d(in_channels=256, out_channels=128, kernel_size=4, stride=2, padding=1),
-            nn.GELU(),
-            nn.ConvTranspose3d(in_channels=128, out_channels=64, kernel_size=4, stride=2, padding=1),
-            )
+            nn.Upsample(scale_factor=2, mode='trilinear'),
+            nn.ConvTranspose3d(in_channels=32, out_channels=8, kernel_size=4, stride=2, padding=1),
+        )
     
     # full forward pass for x
     def forward(self, x):
@@ -645,19 +648,22 @@ if __name__ == '__main__':
     # testing for sc stuff
     sc_testing = True
     if sc_testing:
-        model = B3_CNN()
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = B3_CNN().to(device)
 
         save_path = os.environ['HOME']+'/bh/data.pkl'
 
         # random data
-        data = torch.randn(sizes=(1, 8, 224, 48, 96))
+        data = torch.randn(size=(1, 8, 224, 48, 96)).to(device)
         print("Input shape:", data.shape)
+
+        try:
+            summary(model, input_size=data.shape)
+        except:
+            pass
 
         encoded_pred = model.encode(data)
         print("Encoded output shape:", encoded_pred.shape)
 
         pred = model.forward(data)
         print("Output shape:", pred.shape)
-
-        print(f'Params: {model.num_params()}')
-        print(f'Mem size: {model.size_in_memory():.2f} MB')

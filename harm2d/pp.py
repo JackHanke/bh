@@ -39,11 +39,6 @@ from distutils.dir_util import copy_tree
 from matplotlib import rc
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-## Arjun's ##
-import time
-from numba import njit
-## Arjun's ##
-
 
 rc('text', usetex=False)
 font = {'size': 40}
@@ -5988,7 +5983,7 @@ notebook=1
 interpolate_var=0
 AMR = 0 # get all data in grid
 
-# make batch 
+# make batch from batch_indexes
 def construct_batch(batch_indexes: list, dumps_path: str, device):
     batch_data, label_data = [], []
     for idx in batch_indexes:
@@ -6068,16 +6063,12 @@ def main_worker(rank, world_size, model_path: str = None):
             logger.info(model_weights_info_str)
             print(model_weights_info_str)
 
-    # distribute model  
-    model = DDP(model, device_ids=[rank])
-
-    # loss and optimizer
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters())
-
-    # summarize model 
-    summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
+    # get best validation from model, initially float('inf') for new model
+    best_val_loss = model.best_val_seen
+    
     if rank == 0:
+        # summarize model 
+        summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
         # model summary
         model_summary_str = '\n'+str(summary_str)
         logger.info(model_summary_str)
@@ -6104,12 +6095,16 @@ def main_worker(rank, world_size, model_path: str = None):
         end=end_dump,
     )
     
+    # distribute model to GPU devices
+    model = DDP(model, device_ids=[rank])
+    
+    # loss and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters())
+    
     # distributed sampler to shared data across GPUs 
     train_sampler = DistributedSampler(train_idxs, num_replicas=world_size, rank=rank, shuffle=True)
     valid_sampler = DistributedSampler(valid_idxs, num_replicas=world_size, rank=rank, shuffle=False)
-
-    # get best validation from model, initially float('inf') for new model
-    best_val_loss = model.best_val_seen
 
     # read in grid data for dumps
     rblock_new_ml()
@@ -6134,7 +6129,11 @@ def main_worker(rank, world_size, model_path: str = None):
         for batch_indexes in prog_bar:
             start = time.time()
             # construct batch of data manually
-            batch_data, label_data = construct_batch(batch_indexes=batch_indexes)
+            batch_data, label_data = construct_batch(
+                batch_indexes=batch_indexes, 
+                dumps_path=dumps_path,
+                device=device
+            )
             # zero gradients
             optimizer.zero_grad()
             # compute prediction
@@ -6182,7 +6181,11 @@ def main_worker(rank, world_size, model_path: str = None):
             batch_data, label_data = [], []
 
             # construct batch of data manually
-            batch_data, label_data = construct_batch(batch_indexes=batch_indexes)
+            batch_data, label_data = construct_batch(
+                batch_indexes=batch_indexes, 
+                dumps_path=dumps_path,
+                device=device
+            )
             # compute prediction
             pred = model.inference(batch_data)
             # compute loss
@@ -6340,13 +6343,18 @@ if __name__ == "__main__":
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
+    
+
+    ## if do_train passed when running this file, run training
+    if 'do_train' in sys.argv:
+        do_train = True
+    else:
+        do_train = False
 
     ## if do_train, start training
-    global do_train
     if do_train:
-    
         # if saved b3 model, continue training
-        path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.0.0.pth'
+        path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.0.pth'
         if os.path.exists(path_to_check):
             model_path = path_to_check
             
@@ -6356,9 +6364,9 @@ if __name__ == "__main__":
     
         world_size = torch.cuda.device_count()
         if world_size > 1:
-            print(f"Starting distributed training on {world_size} GPUs")
+            print(f"Starting distributed training on {world_size} GPUs...")
             mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
         else:
-            print("Starting single GPU training")
+            print(f"Starting single GPU training...")
             train()
     

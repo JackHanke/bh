@@ -154,7 +154,7 @@ def rblock_new_ml():
 # original training script before multi GPU was written
 
 # training script
-def train(model: torch.nn.module, model_path: str = None):
+def train(model: torch.nn.Module, model_path: str = None):
     global notebook, axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
     global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
     global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
