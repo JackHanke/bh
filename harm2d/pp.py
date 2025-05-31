@@ -6421,13 +6421,83 @@ def plot_and_save_range(start: int, end: int, save_path: str):
         )
         print(f'Plotted and saved in {time.time()-plot_time_start:.4f} s')
 
+## plc cart edit for msai project
+def plc_cart_ml(var, min, max, rmax, offset, name, label):
+    global aphi, r, h, ph, print_fieldlines,notebook, do_box, do_save
+    fig = plt.figure(figsize=(64, 32))
+
+    X = r*np.sin(h)
+    Y = r*np.cos(h)
+    if(nb==1 and do_box==0):
+        X[:,:,0]=0.0*X[:,:,0]
+        X[:,:,bs2new-1]=0.0*X[:,:,bs2new-1]
+
+    plotmax = int(20*rmax * np.sqrt(2))
+
+    ilim = len(r[0, :, 0, 0]) - 1
+    for i in range(len(r[0, :, 0, 0])):
+        if r[0, i, 0, 0] > np.sqrt(2)*plotmax:
+            ilim = i
+            break
+
+    levels_ch = np.linspace(min, max, 300)
+    #levels_ch = np.arange(min, max, (max-min)/300.0)
+
+    # full left figure
+    plt.subplot(1, 2, 1)
+    plc_new((var)[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax, ymax=rmax)
+    res = plc_new((var)[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=-1.0 * X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax, ymax=rmax)
+    if (print_fieldlines == 1):
+        plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax, ymax=rmax)
+        plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=-1.0 * X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax, ymax=rmax)
+    plt.xlabel(r"$x / R_g$", fontsize=90)
+    plt.ylabel(r"$z / R_g$", fontsize=90)
+    plt.title(label, fontsize=90)
+    ax = plt.gca()
+    ax.yaxis.set_ticks_position('left')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.tick_params(axis='both', reset=False, which='both', length=24, width=6)
+    plt.gca().set_aspect(1)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cb=plt.colorbar(res, cax=cax)
+    #cb.ax.tick_params(labelsize=50)
+
+    # zoomed right figure
+    factor = 20
+    plt.subplot(1, 2, 2)
+    plc_new((var)[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax * factor, ymax=rmax * factor)
+    res = plc_new((var)[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=-1.0 * X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax * factor, ymax=rmax * factor)
+    if (print_fieldlines == 1):
+        plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax * factor, ymax=rmax * factor)
+        plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=-1.0 * X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax * factor, ymax=rmax * factor)
+
+    plt.xlabel(r"$x / R_g$", fontsize=90)
+    #plt.ylabel(r"$z / R_g$", fontsize=60)
+    plt.title(label, fontsize=90)
+    ax = plt.gca()
+    ax.yaxis.set_ticks_position('left')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.tick_params(axis='both', reset=False, which='both', length=24, width=6)
+    plt.gca().set_aspect(1)
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cb=plt.colorbar(res, cax=cax)
+    #cb.ax.tick_params(labelsize=50)
+    plt.tight_layout()
+    if (do_save==1):
+        plt.savefig(name, dpi=100)
+    # if (notebook==0):
+    # NOTE always close
+    plt.close('all')
+
+
 if __name__ == "__main__":
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
 
-    ## training
-
+    ## if do_train, start training
     global do_train
     if do_train:
     
