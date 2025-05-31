@@ -43,6 +43,9 @@ def setup():
     global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
     global set_mpi
 
+    global do_train
+    do_train = True
+
     """
     Main function to execute the build commands.
     """
