@@ -5950,58 +5950,56 @@ def rblock_new_ml():
             block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
 
 
-do_train = True
-if do_train:
 
-    # system imports
-    import os
-    import sys
-    import subprocess
-    import logging
-    import time
-    import pickle
-    import yaml
+# system imports
+import os
+import sys
+import subprocess
+import logging
+import time
+import pickle
+import yaml
 
-    # training imports
-    import torch
-    from torchinfo import summary
-    import numpy as np
-    from tqdm import tqdm
+# training imports
+import torch
+from torchinfo import summary
+import numpy as np
+from tqdm import tqdm
 
-    # training utilities
-    from utils.sc_utils import custom_batcher, tensorize_globals
-    from models.cnn.cnn import *
+# training utilities
+from utils.sc_utils import custom_batcher, tensorize_globals
+from models.cnn.cnn import *
 
-    # distributed training
-    import torch.distributed as dist  # NEW: Import for distributed training
-    import torch.multiprocessing as mp  # NEW: Import for multiprocessing
-    from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
-    from torch.utils.data import Dataset, DataLoader, DistributedSampler
+# distributed training
+import torch.distributed as dist  # NEW: Import for distributed training
+import torch.multiprocessing as mp  # NEW: Import for multiprocessing
+from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
-    # set params
-    lowres1 = 1 # 
-    lowres2 = 1 # 
-    lowres3 = 1 # 
-    r_min, r_max = 1.0, 100.0
-    theta_min, theta_max = 0.0, 9
-    phi_min, phi_max = -1, 9
-    do_box=0
-    set_cart=0
-    set_mpi(0)
-    axisym=1
-    print_fieldlines=0
-    export_raytracing_GRTRANS=0
-    export_raytracing_RAZIEH=0
-    kerr_schild=0
-    DISK_THICKNESS=0.03
-    check_files=1
-    notebook=1
-    interpolate_var=0
-    AMR = 0 # get all data in grid
+# set params
+lowres1 = 1 # 
+lowres2 = 1 # 
+lowres3 = 1 # 
+r_min, r_max = 1.0, 100.0
+theta_min, theta_max = 0.0, 9
+phi_min, phi_max = -1, 9
+do_box=0
+set_cart=0
+set_mpi(0)
+axisym=1
+print_fieldlines=0
+export_raytracing_GRTRANS=0
+export_raytracing_RAZIEH=0
+kerr_schild=0
+DISK_THICKNESS=0.03
+check_files=1
+notebook=1
+interpolate_var=0
+AMR = 0 # get all data in grid
 
     
 # training script
-def train():
+def train(model_path: str = None):
     global notebook, axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
     global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
     global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
@@ -6044,6 +6042,7 @@ def train():
     # set model
     # model = JACK_CNN_3D().to(device)
     model = CNN_DEPTH().to(device)
+    
     # model = CNN_DEPTH().to(device)
     summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
     logger.info('\n'+str(summary_str))
@@ -6225,13 +6224,20 @@ def setup(rank, world_size):
 def cleanup():
     dist.destroy_process_group()
 
-def main_worker(rank, world_size):
+## main worker
+def main_worker(rank, world_size, model_path: str = None):
     setup(rank, world_size)
     torch.cuda.set_device(rank)
     device = torch.device(f'cuda:{rank}')
     
     if rank == 0:
-        logging.basicConfig(filename='training.log', filemode='w', level=logging.DEBUG)
+        logger = logging.getLogger(__name__)
+        logging.basicConfig(
+            filename='training.log',
+            filemode='w',
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
 
     with open('train_config.yaml', 'r') as f:
         config = yaml.safe_load(f)
@@ -6244,16 +6250,22 @@ def main_worker(rank, world_size):
     start_dump = config['start_dump']
     end_dump = config['end_dump']
 
-    print(num_dumps)
-    
     # Setup model
     model = CNN_DEPTH().to(device)
+    # bring in model weights if model_path is provided
+    if model_path is not None:
+        if rank ==0:
+            logger.info('\n' + "loading existing model")
+        model_dict_path = model_path
+        model_dict = torch.load(model_dict_path)
+        model.load_state_dict(model_dict)
+        
     model = DDP(model, device_ids=[rank])
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters())
-    # summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
-    # if rank == 0:
-    #     logger.info('\n'+str(summary_str))
+    summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
+    if rank == 0:
+        logger.info('\n'+str(summary_str))
     
 
     training_hyperparams_str = f'Training on dumps {start_dump} - {end_dump} for {num_epochs} epochs at batch size = {batch_size} on {device} device.'
@@ -6284,12 +6296,15 @@ def main_worker(rank, world_size):
     
     ## Training
     for epoch in range(num_epochs):
+        train_start_time = time.time()
         model.train()
         train_sampler.set_epoch(epoch)
         epoch_train_loss = []
 
         train_batches = torch.utils.data.DataLoader(train_idxs, batch_size=batch_size, sampler=train_sampler)
-        for batch_indexes in tqdm(train_batches, disable=rank != 0):
+        prog_bar = tqdm(train_batches, disable=rank != 0)
+        for batch_indexes in prog_bar:
+            start = time.time()
             batch_data, label_data = [], []
             for idx in batch_indexes:
                 idx = idx.item()
@@ -6310,11 +6325,20 @@ def main_worker(rank, world_size):
             loss.backward()
             optimizer.step()
             epoch_train_loss.append(loss.item())
+            
+            # training batch logging
+            if rank == 0: 
+                batch_str = f'Epoch {epoch+1} train completed with loss {loss.item():.4f} in {time.time()-start:.2f}s'
+                prog_bar.set_description(batch_str)
+            if rank == 0: logger.debug(batch_str)
 
         train_loss_avg = sum(epoch_train_loss)/len(epoch_train_loss)
         if rank == 0:
-            logging.info(f"Epoch {epoch+1} train loss: {train_loss_avg:.4f}")
             train_losses.append(train_loss_avg)
+            
+            train_str = f"Epoch {epoch+1} train loss: {train_loss_avg:.4f} in {time.time()-train_start_time:.2f} s"
+            logger.info(train_str)
+            prog_bar.set_description(train_str)
 
         ## Validation
         model.eval()
@@ -6341,7 +6365,7 @@ def main_worker(rank, world_size):
 
         val_loss_avg = sum(epoch_valid_loss)/len(epoch_valid_loss)
         if rank == 0:
-            logging.info(f"Epoch {epoch+1} validation loss: {val_loss_avg:.4f}")
+            logger.info(f"Epoch {epoch+1} validation loss: {val_loss_avg:.4f}")
             valid_losses.append(val_loss_avg)
 
             # Save best model on rank 0
@@ -6398,25 +6422,26 @@ def plot_and_save_range(start: int, end: int, save_path: str):
         print(f'Plotted and saved in {time.time()-plot_time_start:.4f} s')
 
 if __name__ == "__main__":
-
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
 
-    ## NOTE training
+    ## training
+
+    # if saved b3 model, continue training
+    path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.0.0.pth'
+    if os.path.exists(path_to_check):
+        model_path = path_to_check
+        
+    # otherwise no model, random init
+    else:
+        model_path = None
 
     world_size = torch.cuda.device_count()
     if world_size > 1:
         print(f"Starting distributed training on {world_size} GPUs")
-        mp.spawn(main_worker, args=(world_size,), nprocs=world_size, join=True)
+        mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
     else:
         print("Starting single GPU training")
         train()
-
-    # 
-    # save_path = os.environ['HOME']+f'/bh/movies/sc_frames/'
-    # plot_and_save_range(start=3000, end=3050, save_path=save_path)
-    # 
-
-
 

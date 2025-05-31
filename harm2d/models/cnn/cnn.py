@@ -227,7 +227,7 @@ class JACK_CNN_3D(nn.Module):
 ##########################################################################################
 # Arjun's 3D CNN
 class CNN_DEPTH(nn.Module):
-    def __init__(self, input_channels: int = 8, name: str = "Arjun's 3d CNN with Depthwise separable convolution", version_str: str = 'v0.0.0'):
+    def __init__(self, input_channels: int = 8, name: str = "b3", version_str: str = 'v0.0.0'):
         super().__init__()
 
         # model information and metadata
@@ -258,9 +258,9 @@ class CNN_DEPTH(nn.Module):
 
         self.bottleneck_layers = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(1024 * 14 * 3 * 6, 2048),
+            nn.Linear(1024 * 14 * 3 * 6, 512),
             nn.GELU(),
-            nn.Linear(2048, 1024 * 14 * 3 * 6),
+            nn.Linear(512, 1024 * 14 * 3 * 6),
             nn.Unflatten(1, (1024, 14, 3, 6)),
         )
 

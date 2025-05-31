@@ -15,14 +15,14 @@ def custom_batcher(
     if seed is not None: np.random.seed(seed)
     # randomize data
     if start is None and end is None:
-        indexes = np.arange(num_dumps)
+        indexes = np.arange(num_dumps) # 0 to num_dumps
     else:
         # if only training on some portion of dumps, use line below:
-        indexes = np.arange(start=start, stop=end)
+        indexes = np.arange(start=start, stop=end) # start to end
     
     np.random.shuffle(indexes)
     # get split
-    split_idx = round(num_dumps*(split))
+    split_idx = round(len(indexes)*(split))
     # split indexes and return
     train_indexes = indexes[:split_idx]
     validation_indexes = indexes[split_idx:]
