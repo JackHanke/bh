@@ -16,25 +16,24 @@ def rblock_new_ml():
     global AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8
     global AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8
     global AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P
-    global block, nmax, n_ord, AMR_TIMELEVEL
+    # global block, nmax, n_ord, AMR_TIMELEVEL
 
-    AMR_ACTIVE, AMR_LEVEL, AMR_REFINED = 0,1,2
     AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT = 3,4,5,6
     AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8 = 7, 8, 9, 10, 11, 12, 13, 14
     AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP = 15,16,17,18,19,20,21,22,23
     AMR_CORN1, AMR_CORN2, AMR_CORN3, AMR_CORN4, AMR_CORN5, AMR_CORN6, AMR_CORN7, AMR_CORN8, AMR_CORN9, AMR_CORN10, AMR_CORN11, AMR_CORN12 = 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35
-    AMR_LEVEL1, AMR_LEVEL2, AMR_LEVEL3 = 110,111,112
     AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8, AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8=113, 114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136
     AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P=161,162,163,164,165,166
     AMR_TIMELEVEL=36
+
+    AMR_ACTIVE, AMR_LEVEL, AMR_REFINED = 0,1,2
+    AMR_LEVEL1, AMR_LEVEL2, AMR_LEVEL3 = 110,111,112
 
     if(os.path.isfile("gdumps/grid")):
         fin = open("gdumps/grid", "rb")
         size = os.path.getsize("gdumps/grid")
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
-        # end = time.time()
-        # print(f"End of elif: {end - start}")
 
     else:
         print("Cannot find grid file!")
@@ -54,6 +53,8 @@ def rblock_new_ml():
             block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
             block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
             block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
+
+    return block, nmax, n_ord
 
 # rpar_new
 def rpar_new(dump):
@@ -255,12 +256,78 @@ def rgdump_griddata(dir):
     pp_c.rgdump_griddata(flag, interpolate_var, dir, axisym, n_ord,lowres1, lowres2, lowres3 ,nb,bs1,bs2,bs3, x1,x2, x3, r,h, ph,gcov, gcon,dxdxp,gdet,block, nb1, nb2, nb3, REF_1, REF_2, REF_3, np.max(block[n_ord, AMR_LEVEL1]), np.max(block[n_ord, AMR_LEVEL2]), np.max(block[n_ord, AMR_LEVEL3]), startx1,startx2,startx3,_dx1,_dx2,_dx3, export_raytracing_RAZIEH, i_min, i_max, j_min, j_max, z_min, z_max)
 
 # rdump_griddata
-def rdump_griddata(dir, dump):
+def rdump_griddata(
+    dump_dir: str, 
+    dump: int,
+    n_ord: np.array,
+    bloack: np.array,
+    ):
     # global rho, ug, uu, B
-    global uu_rad, E_rad, E,  TE, TI, photon_number, RAD_M1, RESISTIVE, TWO_T, P_NUM, nb2d, bs1,bs2,bs3,bs1new,bs2new,bs3new,lowres1, lowres2, lowres3, gcov,gcon,axisym,_dx1,_dx2,_dx3, nb, nb1, nb2, nb3, REF_1, REF_2, REF_3, n_ord, interpolate_var, export_raytracing_GRTRANS,export_raytracing_RAZIEH, DISK_THICKNESS, a, gam, bsq, Rdot
-    global startx1,startx2,startx3,_dx1,_dx2,_dx3,x1,x2,x3
-    global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
+    # global uu_rad, E_rad, E,  TE, TI, photon_number, RAD_M1, RESISTIVE, TWO_T, P_NUM, nb2d, bs1,bs2,bs3,bs1new,bs2new,bs3new,lowres1, lowres2, lowres3, gcov,gcon,axisym,_dx1,_dx2,_dx3, nb, nb1, nb2, nb3, REF_1, REF_2, REF_3, n_ord, interpolate_var, export_raytracing_GRTRANS,export_raytracing_RAZIEH, DISK_THICKNESS, a, gam, bsq, Rdot
+    # global startx1,startx2,startx3,_dx1,_dx2,_dx3,x1,x2,x3
+    # global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
     import pp_c
+
+    # hardcode unchaging global variables
+    gridsizex1 = 224
+    gridsizex2 = 48
+    gridsizex3 = 96
+    mytype = np.float32
+    flag = 0
+    interpolate_var = 0
+    np.int32(RAD_M1) = 0
+    np.int32(RESISTIVE) = 0
+    TWO_T = 0
+    P_NUM = 0
+    n_active_total = 456
+    lowres1 = 1
+    lowres2 = 1
+    lowres3 = 1
+    nb = 1
+    bs1 = 14
+    bs2 = 12
+    bs3 = 12
+    axisym = 1
+    nb1 = 1
+    nb2 = 1
+    nb3 = 1
+    REF_1 = 1
+    REF_2 = 1
+    REF_3 = 1
+    np.max(block[n_ord, AMR_LEVEL1]) = 1
+    np.max(block[n_ord, AMR_LEVEL2]) = 1
+    np.max(block[n_ord, AMR_LEVEL3]) = 1
+    export_raytracing_RAZIEH = 0
+    DISK_THICKNESS = 0.03
+    a = 0.94
+    gam = 1.6666666666666667
+    startx1 = 0.09509474077300727
+    startx2 = -0.9791666666666666
+    startx3 = 0.0
+    _dx1 = 0.06125185632674673
+    _dx2 = 0.04079861111111111
+    _dx3 = 0.06544984694978735
+    i_min = 0
+    i_max = 224
+    j_min = 0
+    j_max = 48
+    z_min = 0
+    z_max = 96
+
+    # NOTE this may cause problems, these are non-zero after c functions
+    gcov = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
+    gcon = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
+    # print(gcov)
+    # print(gcon)
+
+    x1 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
+    x2 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
+    x3 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
+    r = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
+    # print(x1)
+    # print(x2)
+    # print(x3)
+    # print(r)
 
     # Allocate memory
     rho = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
@@ -372,69 +439,6 @@ def rdump_griddata(dir, dump):
         z_max,
     )
 
-    print(flag)
-    print(interpolate_var)
-    print(npint32(RAD_M1))
-    print(npint32(RESISTIVE))
-    print(TWO_T)
-    print(P_NUM)
-    print(dir)
-    print(dump)
-    print(n_active_total)
-    print(lowres1)
-    print(lowres2)
-    print(lowres3)
-    print(nb)
-    print(bs1)
-    print(bs2)
-    print(bs3)
-    print(rho)
-    print(ug)
-    print(uu)
-    print(B)
-    print(E)
-    print(E_rad)
-    print(uu_rad)
-    print(TE)
-    print(TI)
-    print(photon_number)
-    print(gcov)
-    print(gcon)
-    print(axisym)
-    print(n_ord)
-    print(block)
-    print(nb1)
-    print(nb2)
-    print(nb3)
-    print(REF_1)
-    print(REF_2)
-    print(REF_3)
-    print(np.max(block[n_ord, AMR_LEVEL1]))
-    print(np.max(block[n_ord, AMR_LEVEL2]))
-    print(np.max(block[n_ord, AMR_LEVEL3]))
-    print(export_raytracing_RAZIEH)
-    print(DISK_THICKNESS)
-    print(a)
-    print(gam)
-    print(Rdot)
-    print(bsq)
-    print(r)
-    print(startx1)
-    print(startx2)
-    print(startx3)
-    print(_dx1)
-    print(_dx2)
-    print(_dx3)
-    print(x1)
-    print(x2)
-    print(x3)
-    print(i_min)
-    print(i_max)
-    print(j_min)
-    print(j_max)
-    print(z_min)
-    print(z_max)
-
     bs1new = gridsizex1
     bs2new = gridsizex2
     bs3new = gridsizex3
@@ -457,8 +461,16 @@ if __name__ == '__main__':
     dump_index = 5
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
 
+    # get griddata
+    block, nmax, n_ord = rblock_new_ml()
+
     start = time.time()
-    rho, ug, uu, B = rdump_griddata(dir=dumps_path, dump=dump_index)
+    rho, ug, uu, B = rdump_griddata(
+        dir=dumps_path, 
+        dump=dump_index,
+        block=block,
+        n_ord=n_ord,
+    )
     print(f'rho shape: {rho.shape()}')
     f'Read time of dump {dump} {time.time()-start:.4f}s'
 
