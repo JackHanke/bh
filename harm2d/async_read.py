@@ -1,4 +1,7 @@
 
+import time
+import numpy as np
+
 # 
 
 
@@ -253,7 +256,7 @@ def rgdump_griddata(dir):
 
 # rdump_griddata
 def rdump_griddata(dir, dump):
-    global rho, ug, uu, B
+    # global rho, ug, uu, B
     global uu_rad, E_rad, E,  TE, TI, photon_number, RAD_M1, RESISTIVE, TWO_T, P_NUM, nb2d, bs1,bs2,bs3,bs1new,bs2new,bs3new,lowres1, lowres2, lowres3, gcov,gcon,axisym,_dx1,_dx2,_dx3, nb, nb1, nb2, nb3, REF_1, REF_2, REF_3, n_ord, interpolate_var, export_raytracing_GRTRANS,export_raytracing_RAZIEH, DISK_THICKNESS, a, gam, bsq, Rdot
     global startx1,startx2,startx3,_dx1,_dx2,_dx3,x1,x2,x3
     global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
@@ -384,5 +387,17 @@ def rdump_griddata(dir, dump):
     nb2 = 1
     nb3 = 1
 
+    return rho, ug, uu, B
+
 if __name__ == '__main__':
-    pass
+
+    dump_index = 5
+    dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
+
+    start = time.time()
+    rho, ug, uu, B = rdump_griddata(dir=dumps_path, dump=dump_index)
+    print(f'rho shape: {rho.shape()}')
+    f'Read time of dump {dump} {time.time()-start:.4f}s'
+
+
+    

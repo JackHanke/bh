@@ -887,6 +887,8 @@ def rdump_griddata(dir, dump):
     global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
     import pp_c
 
+    print(gridsizex1)
+
     # Allocate memory
     rho = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
     ug = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
@@ -5828,6 +5830,54 @@ def post_process(dir, dump_start, dump_end, dump_stride):
 ## MSAI work starts here
 
 
+# rblock_new_ml()
+def rblock_new_ml():
+    global AMR_ACTIVE, AMR_LEVEL,AMR_LEVEL1,AMR_LEVEL2,AMR_LEVEL3, AMR_REFINED, AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT
+    global AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8
+    global AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP
+    global AMR_CORN1, AMR_CORN2, AMR_CORN3, AMR_CORN4, AMR_CORN5, AMR_CORN6
+    global AMR_CORN7, AMR_CORN8, AMR_CORN9, AMR_CORN10, AMR_CORN11, AMR_CORN12
+    global AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8
+    global AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8
+    global AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P
+    global block, nmax, n_ord, AMR_TIMELEVEL
+
+    AMR_ACTIVE, AMR_LEVEL, AMR_REFINED = 0,1,2
+    AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT = 3,4,5,6
+    AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8 = 7, 8, 9, 10, 11, 12, 13, 14
+    AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP = 15,16,17,18,19,20,21,22,23
+    AMR_CORN1, AMR_CORN2, AMR_CORN3, AMR_CORN4, AMR_CORN5, AMR_CORN6, AMR_CORN7, AMR_CORN8, AMR_CORN9, AMR_CORN10, AMR_CORN11, AMR_CORN12 = 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35
+    AMR_LEVEL1, AMR_LEVEL2, AMR_LEVEL3 = 110,111,112
+    AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8, AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8=113, 114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136
+    AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P=161,162,163,164,165,166
+    AMR_TIMELEVEL=36
+
+    if(os.path.isfile("gdumps/grid")):
+        fin = open("gdumps/grid", "rb")
+        size = os.path.getsize("gdumps/grid")
+        nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
+        NV = (size - 1) // nmax // 4
+        # end = time.time()
+        # print(f"End of elif: {end - start}")
+
+    else:
+        print("Cannot find grid file!")
+        return
+
+    with open("gdumps/grid", "rb") as fin:
+        size = os.path.getsize("gdumps/grid")
+        nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
+        NV = (size - 1) // nmax // 4
+        block = np.zeros((nmax, 200), dtype=np.int32, order='C')
+        n_ord = np.zeros((nmax), dtype=np.int32, order='C')
+        gd = np.fromfile(fin, dtype=np.int32, count=NV * nmax, sep='')
+        gd = gd.reshape((NV, nmax), order='F').T
+        # start = time.time()
+        block[:,0:NV] = gd
+        if(NV<170):
+            block[:, AMR_LEVEL1] = gd[:, AMR_LEVEL]
+            block[:, AMR_LEVEL2] = gd[:, AMR_LEVEL]
+            block[:, AMR_LEVEL3] = gd[:, AMR_LEVEL]
 
 # system imports
 import os
@@ -6236,6 +6286,29 @@ if __name__ == "__main__":
     dirr = "G:\\G\\HAMR\\RHAMR_CUDA3\\RHAMR\\RHAMR_CPU"
     #dirr = "/gpfs/alpine/phy129/proj-shared/T65_2021/reduced"
     #post_process(dirr, 11,12,1)
+
+    
+    dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
+    os.chdir(dumps_path)
+
+    frame_index = 15
+
+    start = time.time()
+    rblock_new_ml()
+    print(f'time for rblock_new_ml():{time.time()-start :.4f} s')
+    
+    start = time.time()
+    rpar_new(frame_index)
+    print(f'time for rpar_new():{time.time()-start :.4f} s')
+    
+    start = time.time()
+    rgdump_griddata(dumps_path)
+    print(f'time for rgdump_griddata():{time.time()-start :.4f} s')
+    
+    start = time.time()
+    rdump_griddata(dumps_path, frame_index)
+    print(f'time for rdump_griddata():{time.time()-start :.4f} s')
+
     
 
     ## if do_train passed when running this file, run training
