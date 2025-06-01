@@ -4,6 +4,102 @@ from torchinfo import summary
 
 # various models 
 
+## b3 3d cnn alt architecture
+class B3_CNN(nn.Module):
+    def __init__(self, 
+            input_channels: int = 8, 
+            name: str = "b3", 
+            version_str: str = 'v0.1.0'
+        ):
+        super().__init__()
+        # model information and metadata
+        self.name = name
+        self.version_num = version_str
+        self.class_name = 'B3_CNN'
+        self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
+        self.latent_dim = 2048
+        # track best validation for multiple training sessions
+        self.best_val_seen = float('inf')
+
+        ## architecture
+
+        # encoder
+        self.encoder = nn.Sequential(
+            nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.MaxPool3d(2, stride=2),
+            nn.GELU(),
+            nn.Conv3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.MaxPool3d(2, stride=2),
+            nn.GELU(),
+        )
+
+        # bottleneck
+        self.bottleneck_layers = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 14 * 3 * 6, self.latent_dim),
+            nn.GELU(),
+            nn.Linear(self.latent_dim, 64 * 14 * 3 * 6),
+            nn.Unflatten(1, (64, 14, 3, 6)),
+        )
+        
+        # decoder
+        self.decoder = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='trilinear'),
+            nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
+            nn.Upsample(scale_factor=2, mode='trilinear'),
+            nn.ConvTranspose3d(in_channels=32, out_channels=8, kernel_size=4, stride=2, padding=1),
+        )
+    
+    # full forward pass for x
+    def forward(self, x):
+        x1 = self.encoder(x)
+        x1 = self.bottleneck_layers(x1)
+        x1 = self.decoder(x1) + x # residual connection
+        return x1
+        
+    # encode raw x
+    def encode(self, x):
+        return self.encoder(x)
+
+    # decode latent x
+    def decode(self, x):
+        return self.decoder(x)
+
+    # bottleneck layer
+    def bottleneck(self, x):
+        return self.bottleneck_layers(x)
+    
+    @torch.no_grad()
+    def inference(self, x):
+        return self.forward(x)
+    
+    # save model at save_path
+    def save(self, save_path:str = None):
+        if save_path is None:
+            torch.save(self.state_dict(), self.save_path)
+            print(f'Saved model as {self.save_path}')
+        else:
+            torch.save(self.state_dict(), save_path)
+            print(f'Saved model as {save_path}')
+
+    # get number of parameters
+    def num_params(self):
+        return sum(p.numel() for p in self.parameters())
+
+    # get memory footprint
+    def size_in_memory(self):
+        param_size = 0
+        for param in self.parameters():
+            param_size += param.nelement() * param.element_size()
+
+        buffer_size = 0
+        for buffer in self.buffers():
+            buffer_size += buffer.nelement() * buffer.element_size()
+
+        size_all_mb = (param_size + buffer_size) / 1024**2
+        return size_all_mb
+
 # small test 3d CNN
 class test_CNN_3D(nn.Module):
     def __init__(self, input_channels: int = 8, name: str = 'test_3dcnn', version_str: str = 'v0.0.0'):
@@ -102,104 +198,6 @@ class test_CNN_3D(nn.Module):
 
         size_all_mb = (param_size + buffer_size) / 1024**2
         return size_all_mb
-
-## b3 3d cnn alt architecture
-class B3_CNN(nn.Module):
-    def __init__(self, 
-            input_channels: int = 8, 
-            name: str = "b3", 
-            version_str: str = 'v0.1.0'
-        ):
-        super().__init__()
-        # model information and metadata
-        self.name = name
-        self.version_num = version_str
-        self.class_name = 'B3_CNN'
-        self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
-        self.latent_dim = 2048
-        # track best validation for multiple training sessions
-        self.best_val_seen = float('inf')
-
-        ## architecture
-
-        # encoder
-        self.encoder = nn.Sequential(
-            nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.MaxPool3d(2, stride=2),
-            nn.GELU(),
-            nn.Conv3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.MaxPool3d(2, stride=2),
-            nn.GELU(),
-        )
-
-        # bottleneck
-        self.bottleneck_layers = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(64 * 14 * 3 * 6, self.latent_dim),
-            nn.GELU(),
-            nn.Linear(self.latent_dim, 64 * 14 * 3 * 6),
-            nn.Unflatten(1, (64, 14, 3, 6)),
-        )
-        
-        # decoder
-        self.decoder = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='trilinear'),
-            nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.GELU(),
-            nn.Upsample(scale_factor=2, mode='trilinear'),
-            nn.ConvTranspose3d(in_channels=32, out_channels=8, kernel_size=4, stride=2, padding=1),
-        )
-    
-    # full forward pass for x
-    def forward(self, x):
-        x1 = self.encoder(x)
-        x1 = self.bottleneck_layers(x1)
-        x1 = self.decoder(x1) + x # residual
-        return x
-        
-    # encode raw x
-    def encode(self, x):
-        return self.encoder(x)
-
-    # decode latent x
-    def decode(self, x):
-        return self.decoder(x)
-
-    # bottleneck layer
-    def bottleneck(self, x):
-        return self.bottleneck_layers(x)
-    
-    @torch.no_grad()
-    def inference(self, x):
-        return self.forward(x)
-    
-    # save model at save_path
-    def save(self, save_path:str = None):
-        if save_path is None:
-            torch.save(self.state_dict(), self.save_path)
-            print(f'Saved model as {self.save_path}')
-        else:
-            torch.save(self.state_dict(), save_path)
-            print(f'Saved model as {save_path}')
-
-    # get number of parameters
-    def num_params(self):
-        return sum(p.numel() for p in self.parameters())
-
-    # get memory footprint
-    def size_in_memory(self):
-        param_size = 0
-        for param in self.parameters():
-            param_size += param.nelement() * param.element_size()
-
-        buffer_size = 0
-        for buffer in self.buffers():
-            buffer_size += buffer.nelement() * buffer.element_size()
-
-        size_all_mb = (param_size + buffer_size) / 1024**2
-        return size_all_mb
-
-
 
 ##########################################################################################
 # Arjun's 3D CNN
@@ -650,11 +648,14 @@ if __name__ == '__main__':
     if sc_testing:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model = B3_CNN().to(device)
+        loss_fn = torch.nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters())
 
         save_path = os.environ['HOME']+'/bh/data.pkl'
 
         # random data
         data = torch.randn(size=(1, 8, 224, 48, 96)).to(device)
+        label_data = torch.randn(size=(1, 8, 224, 48, 96)).to(device)
         print("Input shape:", data.shape)
 
         try:
@@ -662,8 +663,14 @@ if __name__ == '__main__':
         except:
             pass
 
-        encoded_pred = model.encode(data)
-        print("Encoded output shape:", encoded_pred.shape)
+        # encoded_pred = model.encode(data)
+        # print("Encoded output shape:", encoded_pred.shape)
 
         pred = model.forward(data)
         print("Output shape:", pred.shape)
+
+        loss = loss_fn(pred, label_data)
+        # backprop and update gradients
+        loss.backward()
+        optimizer.step()
+

@@ -1,40 +1,53 @@
+## async_read.py is a minimal pp.py clone rewritten for read performance of dumps
+## cli command > python async_read.py build_ext --inplace
+
+
+# system imports
 import os
 import sys
+import subprocess
+import logging
 import time
+import pickle
+import yaml
+import asyncio
+
+# training imports
 import numpy as np
+from tqdm import tqdm
+import torch
+from torchinfo import summary
+# distributed training
+import torch.distributed as dist  # NEW: Import for distributed training
+import torch.multiprocessing as mp  # NEW: Import for multiprocessing
+from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
-import inspect 	
+# local training utilities
+from utils.sc_utils import custom_batcher, tensorize_globals
+from models.cnn.threed_cnn import *
 
-this_script_full_path = inspect.stack()[0][1]
-dirname = os.path.dirname(this_script_full_path)
-sys.path.append(dirname)
-
-# from setuptools import setup
+## setup package and compile
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
+setup(
+    cmdclass={'build_ext': build_ext},
+    ext_modules=[
+        Extension(
+            "pp_c", 
+            sources=["pp_c.pyx", "functions.c"], 
+            include_dirs=[np.get_include()], 
+            extra_compile_args=["-fopenmp"], 
+            extra_link_args=["-O2 -fopenmp"]
+        )
+    ]
+)
 
 
-# rblock_new_ml()
-def rblock_new_ml(dumps_path: str):
-    global AMR_ACTIVE, AMR_LEVEL,AMR_LEVEL1,AMR_LEVEL2,AMR_LEVEL3, AMR_REFINED, AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT
-    global AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8
-    global AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP
-    global AMR_CORN1, AMR_CORN2, AMR_CORN3, AMR_CORN4, AMR_CORN5, AMR_CORN6
-    global AMR_CORN7, AMR_CORN8, AMR_CORN9, AMR_CORN10, AMR_CORN11, AMR_CORN12
-    global AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8
-    global AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8
-    global AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P
-    # global block, nmax, n_ord, AMR_TIMELEVEL
-
-    AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT = 3,4,5,6
-    AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8 = 7, 8, 9, 10, 11, 12, 13, 14
-    AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP = 15,16,17,18,19,20,21,22,23
-    AMR_CORN1, AMR_CORN2, AMR_CORN3, AMR_CORN4, AMR_CORN5, AMR_CORN6, AMR_CORN7, AMR_CORN8, AMR_CORN9, AMR_CORN10, AMR_CORN11, AMR_CORN12 = 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35
-    AMR_NBR1_3, AMR_NBR1_4, AMR_NBR1_7, AMR_NBR1_8, AMR_NBR2_1, AMR_NBR2_2, AMR_NBR2_3, AMR_NBR2_4, AMR_NBR3_1, AMR_NBR3_2, AMR_NBR3_5, AMR_NBR3_6, AMR_NBR4_5, AMR_NBR4_6, AMR_NBR4_7, AMR_NBR4_8, AMR_NBR5_1, AMR_NBR5_3, AMR_NBR5_5, AMR_NBR5_7, AMR_NBR6_2, AMR_NBR6_4, AMR_NBR6_6, AMR_NBR6_8=113, 114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136
-    AMR_NBR1P, AMR_NBR2P, AMR_NBR3P, AMR_NBR4P, AMR_NBR5P, AMR_NBR6P=161,162,163,164,165,166
-    AMR_TIMELEVEL=36
-
+# rblock_new_ml() rewrite
+def get_grid_data(dumps_path: str):
+    # replacement of global variable settings
     AMR_ACTIVE, AMR_LEVEL, AMR_REFINED = 0,1,2
     AMR_LEVEL1, AMR_LEVEL2, AMR_LEVEL3 = 110,111,112
 
@@ -67,221 +80,22 @@ def rblock_new_ml(dumps_path: str):
 
     return block, nmax, n_ord
 
-# rpar_new
-def rpar_new(dump):
-    global t, n_active, n_active_total, nstep, Dtd, Dtl, Dtr, dump_cnt, rdump_cnt, dt, failed
-    global bs1, bs2, bs3, nb1, nb2, nb3, startx1, startx2, startx3, _dx1, _dx2, _dx3
-    global tf, a, gam, cour, Rin, Rout, R0, density_scale,REF_1,REF_2,REF_3, RAD_M1, RESISTIVE, TWO_T, P_NUM
-    global nx, ny, nz, nb, rhor,temp_array, gd1_temp,gd2_temp, NODE, TIMELEVEL,flag_restore,r1,r2,r3, export_raytracing_RAZIEH, interpolate_var, rank
-
-    if (os.path.isfile("dumps%d/parameters" % dump)):
-        fin = open("dumps%d/parameters" % dump, "rb")
-    else:
-        print("Rpar error!")
-
-    t = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    n_active = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    n_active_total = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    nstep = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    Dtd = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    Dtl = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    Dtr = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    dump_cnt = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    rdump_cnt = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    dt = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    failed = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-
-    bs1 = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    bs2 = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    bs3 = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    nb1 = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    nb2 = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    nb3 = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-
-    startx1 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    startx2 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    startx3 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    _dx1 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    _dx2 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    _dx3 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    tf = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    a = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    gam = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    cour = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    Rin = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    Rout = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    R0 = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    density_scale = np.fromfile(fin, dtype=np.float64, count=1, sep='')[0]
-    for n in range(0,13):
-        trash = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-    trash = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-
-    if(trash >= 1000):
-        P_NUM=1
-        trash=trash-1000
-    else:
-        P_NUM=0
-    if (trash >= 100):
-        TWO_T = 1
-        trash = trash - 100
-    else:
-        TWO_T = 0
-    if (trash >= 10):
-        RESISTIVE = 1
-        trash = trash - 10
-    else:
-        RESISTIVE = 0
-    if (trash >= 1):
-        RAD_M1 = 1
-        trash = trash - 1
-    else:
-        RAD_M1 = 0
-    trash = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-
-    #Set grid spacing
-    _dx1=(np.log(Rout)-np.log(Rin))/(bs1*nb1)
-    fractheta=-startx2
-    #fractheta = 1.0 - 2.0 / (bs2*nb2) * (bs3*nb3>2.0)
-    _dx2=2.0*fractheta/(bs2*nb2)
-    _dx3=2.0*np.pi/(bs3*nb3)
-
-    nb = n_active_total
-    rhor = 1 + (1 - a ** 2) ** 0.5
-
-    NODE=np.copy(n_ord)
-    TIMELEVEL=np.copy(n_ord)
-
-    REF_1=1
-    REF_2=1
-    REF_3=1
-    flag_restore = 0
-    size = os.path.getsize("dumps%d/parameters" % dump)
-    if(size>=66*4+3*n_active_total*4):
-        n=0
-        while n<n_active_total:
-            n_ord[n]=np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-            TIMELEVEL[n] = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-            NODE[n] = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-            n=n+1
-    elif(size >= 66 * 4 + 2 * n_active_total * 4):
-        n = 0
-        flag_restore=1
-        while n < n_active_total:
-            n_ord[n] = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-            TIMELEVEL[n] = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
-            n = n + 1
-
-    if(export_raytracing_RAZIEH==1 and (bs1%lowres1!=0 or bs2%lowres2!=0 or bs3%lowres3!=0 or ((lowres1 & (lowres1-1) == 0) and lowres1 != 0)!=1 or ((lowres2 & (lowres2-1) == 0) and lowres2 != 0)!=1 or ((lowres3 & (lowres3-1) == 0) and lowres3 != 0)!=1)):
-        if(rank==0):
-            print("For raytracing block size needs to be divisable by lowres!")
-    if(export_raytracing_RAZIEH==1 and interpolate_var==0):
-        if (rank == 0):
-            print("Warning: Variable interpolation is highly recommended for raytracing!")
-    fin.close()
-
-# rgdump_griddata
-def rgdump_griddata(dir):
-    global ti, tj, tk, x1, x2, x3, r, h, ph, gcov, gcon, gdet, drdx, dxdxp, alpha, axisym, interpolate_var
-    global nx, ny, nz, bs1, bs2, bs3, bs1new, bs2new, bs3new, set_cart, set_xc, lowres1,lowres2,lowres3
-    global nb1, nb2, nb3, REF_1, REF_2, REF_3
-    global startx1,startx2,startx3,_dx1,_dx2,_dx3, export_raytracing_RAZIEH
-    global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, rank, gridsizex1, gridsizex2, gridsizex3, check_files
-    # global block, nmax, n_ord, AMR_TIMELEVEL
-    import pp_c
-
-    set_cart=0
-    set_xc=0
-
-    ACTIVE1 = np.max(block[n_ord, AMR_LEVEL1])*REF_1
-    ACTIVE2 = np.max(block[n_ord, AMR_LEVEL2])*REF_2
-    ACTIVE3 = np.max(block[n_ord, AMR_LEVEL3])*REF_3
-
-    if ((int(nb1 * (1 + REF_1) ** ACTIVE1 * bs1) % lowres1) != 0 or (int(nb2 * (1 + REF_2) ** ACTIVE2 * bs2) % lowres2) != 0 or (int(nb3 * (1 + REF_3) ** ACTIVE3 * bs3) % lowres3) != 0):
-        print("Incompatible lowres settings in rgdump_griddata")
-
-    gridsizex1 = int(nb1 * (1 + REF_1) ** ACTIVE1 * bs1/lowres1)
-    gridsizex2 = int(nb2 * (1 + REF_2) ** ACTIVE2 * bs2/lowres2)
-    gridsizex3 = int(nb3 * (1 + REF_3) ** ACTIVE3 * bs3/lowres3)
-
-    _dx1 = _dx1 * lowres1 * (1.0 / (1.0 + REF_1) ** ACTIVE1)
-    _dx2 = _dx2 * lowres2 * (1.0 / (1.0 + REF_2) ** ACTIVE2)
-    _dx3 = _dx3 * lowres3 * (1.0 / (1.0 + REF_3) ** ACTIVE3)
-
-    #Calculate inner and outer boundaries of selection box after upscaling and downscaling; Assumes uniform grid x1=log(r) etc
-    if(do_box==1):
-        i_min = max(np.int32((np.log(r_min)-(startx1+0.5*_dx1)) / _dx1) + 1, 0)
-        i_max = min(np.int32((np.log(r_max)-(startx1+0.5*_dx1)) / _dx1) + 1, gridsizex1)
-        j_min=max(np.int32(((2.0/np.pi*(theta_min)-1.0)-(startx2+0.5*_dx2))/_dx2) + 1,0)
-        j_max=min(np.int32(((2.0/np.pi*(theta_max)-1.0)-(startx2+0.5*_dx2))/_dx2) + 1,gridsizex2)
-        z_min=max(np.int32((phi_min-(startx3+0.5*_dx3))/_dx3) + 1,0)
-        z_max=min(np.int32((phi_max-(startx3+0.5*_dx3))/_dx3) + 1,gridsizex3)
-
-        gridsizex1 = i_max-i_min
-        gridsizex2 = j_max-j_min
-        gridsizex3 = z_max-z_min
-
-        if((j_max<j_min or i_max<i_min or z_max<z_min) and rank==0):
-            print("Bad box selection")
-    else:
-        i_min=0
-        i_max=gridsizex1
-        j_min=0
-        j_max=gridsizex2
-        z_min=0
-        z_max=gridsizex3
-
-    nx = gridsizex1
-    ny = gridsizex2
-    nz = gridsizex3
-
-    # Allocate memory
-    x1 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-    x2 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-    x3 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-    r = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-    h = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-    ph = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-
-    if axisym:
-        gcov = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
-        gcon = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
-        gdet = np.zeros((1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
-        dxdxp = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
-    else:
-        gcov = np.zeros((4, 4, 1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-        gcon = np.zeros((4, 4, 1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-        gdet = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-        dxdxp = np.zeros((4, 4, 1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-
-    if(rank==0 and check_files==1):
-        for n in range(0,n_active_total):
-            if(os.path.isfile('gdumps/gdump%d' %n_ord[n])==0 or os.path.getsize('gdumps/gdump%d' %n_ord[n])!=(9*bs1*bs2*bs3+(bs1*bs2*49)*(axisym)+(bs1*bs2*bs3*49)*(axisym==0))*8):
-                print("Gdump file %d doesn't exist" %n_ord[n])
-    size = os.path.getsize('gdumps/gdump%d' %n_ord[0])
-    if(size==58*bs3*bs2*bs1*8):
-        flag=1
-    else:
-        flag=0
-
-    pp_c.rgdump_griddata(flag, interpolate_var, dir, axisym, n_ord,lowres1, lowres2, lowres3 ,nb,bs1,bs2,bs3, x1,x2, x3, r,h, ph,gcov, gcon,dxdxp,gdet,block, nb1, nb2, nb3, REF_1, REF_2, REF_3, np.max(block[n_ord, AMR_LEVEL1]), np.max(block[n_ord, AMR_LEVEL2]), np.max(block[n_ord, AMR_LEVEL3]), startx1,startx2,startx3,_dx1,_dx2,_dx3, export_raytracing_RAZIEH, i_min, i_max, j_min, j_max, z_min, z_max)
-
-# rdump_griddata
-def rdump_griddata(
+# rdump_griddata rewrite for performance
+async def read_dump_from_disk(
         dump_dir: str, 
         dump: int,
         block: np.array,
         n_ord: np.array,
     ):
-    # global rho, ug, uu, B
-    # global uu_rad, E_rad, E,  TE, TI, photon_number, RAD_M1, RESISTIVE, TWO_T, P_NUM, nb2d, bs1,bs2,bs3,bs1new,bs2new,bs3new,lowres1, lowres2, lowres3, gcov,gcon,axisym,_dx1,_dx2,_dx3, nb, nb1, nb2, nb3, REF_1, REF_2, REF_3, n_ord, interpolate_var, export_raytracing_GRTRANS,export_raytracing_RAZIEH, DISK_THICKNESS, a, gam, bsq, Rdot
-    # global startx1,startx2,startx3,_dx1,_dx2,_dx3,x1,x2,x3
-    # global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
     import pp_c
 
     ## hardcode unchaging global variables
     # set_mpi 
     rank = 0
+    # 
+    AMR_ACTIVE, AMR_LEVEL, AMR_REFINED = 0,1,2
+    AMR_LEVEL1, AMR_LEVEL2, AMR_LEVEL3 = 110,111,112
+    # others
     r_min, r_max = 1.0, 100.0
     theta_min, theta_max = 0.0, 9
     phi_min, phi_max = -1, 9
@@ -294,7 +108,6 @@ def rdump_griddata(
     kerr_schild=0
     DISK_THICKNESS=0.03
     check_files=1
-    # notebook=1
     interpolate_var=0
     AMR = 0 # get all data in grid
     
@@ -323,11 +136,7 @@ def rdump_griddata(
     REF_1 = 1
     REF_2 = 1
     REF_3 = 1
-    # np.max(block[n_ord, AMR_LEVEL1]) = 1
-    # np.max(block[n_ord, AMR_LEVEL2]) = 1
-    # np.max(block[n_ord, AMR_LEVEL3]) = 1
-    # export_raytracing_RAZIEH = 0
-    # DISK_THICKNESS = 0.03
+
     a = 0.94
     gam = 1.6666666666666667
     startx1 = 0.09509474077300727
@@ -343,20 +152,14 @@ def rdump_griddata(
     z_min = 0
     z_max = 96
 
-    # NOTE this may cause problems, these are non-zero after c functions
+    # NOTE this may cause problems, these are non-zero after c functions are called
     gcov = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
     gcon = np.zeros((4, 4, 1, gridsizex1, gridsizex2, 1), dtype=mytype, order='C')
-    # print(gcov)
-    # print(gcon)
-
     x1 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
     x2 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
     x3 = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
     r = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
-    # print(x1)
-    # print(x2)
-    # print(x3)
-    # print(r)
+
 
     # Allocate memory
     rho = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
@@ -397,10 +200,6 @@ def rdump_griddata(
     if (os.path.isfile("dumps%d/new_dump" % dump)):
         flag = 1
     else:
-        # if (rank == 0 and check_files == 10):
-        #     for count in range(0, 5400):
-        #         if (os.path.isfile("dumps%d/new_dump%d" %(dump, count))==0):
-        #             print("Dump file %d in folder %d doesn't exist" %(count,dump))
         flag = 0
 
     pp_c.rdump_griddata(
@@ -485,39 +284,343 @@ def rdump_griddata(
 
     return rho, ug, uu, B
 
-if __name__ == '__main__':
+# read data from disk for data and label batch, transform and tensorize
+async def make_batch(
+        indexes: list[int], 
+        dumps_path: str,
+        block: np.array,
+        n_ord: np.array,
+    ):
+    batch_size = len(indexes)
+    batch_and_label_indexes = indexes + [i+1 for i in indexes]
+    
+    tasks = [
+        read_dump_from_disk(
+            dump_dir=dumps_path, 
+            dump=idx, 
+            block=block, 
+            n_ord=n_ord
+        ) for idx in batch_and_label_indexes
+    ]
+    results = await asyncio.gather(*tasks)
+    
+    batch_tensor, label_tensor = [], []
+    for result_num, (rho, ug, uu, B) in enumerate(results):
+        # transform and stack results
+        rho = rho.reshape((1,224,48,96))
+        ug = ug.reshape((1,224,48,96))
+        uu = uu[1:4].reshape((3,224,48,96))
+        B = B[1:4].reshape((3,224,48,96))
+        
+        # stacked_arr = np.concat((np.log10(rho), np.log10(ug), uu, B), axis=0)
+        stacked_arr = np.concat((rho, ug, uu, B), axis=0)
+        # NOTE this assumes all files come in in order, idk if this is reasonable
+        if result_num < batch_size:
+            batch_tensor.append(stacked_arr)
+        elif result_num >= batch_size:
+            label_tensor.append(stacked_arr)
+    
+    # tensorize
+    batch_tensor = torch.Tensor(np.array(batch_tensor))
+    label_tensor = torch.Tensor(np.array(label_tensor))
+    
+    return batch_tensor, label_tensor
 
-    setup(
-        cmdclass={'build_ext': build_ext},
-        ext_modules=[
-            Extension(
-                "pp_c", 
-                sources=["pp_c.pyx", "functions.c"], 
-                include_dirs=[np.get_include()], 
-                extra_compile_args=["-fopenmp"], 
-                extra_link_args=["-O2 -fopenmp"]
-            )
-        ]
+# make data and label batch from batch_indexes
+def construct_batch(
+        batch_indexes: list[int], 
+        dumps_path: str, 
+        device,
+        block: np.array,
+        n_ord: np.array,
+    ):
+    batch_data, label_data = asyncio.run(
+        make_batch(
+            indexes=batch_indexes, 
+            dumps_path=dumps_path, 
+            block=block, 
+            n_ord=n_ord,
+        )
     )
+    # send tensors to device
+    batch_data = batch_data.to(device)
+    label_data = label_data.to(device)
+    return batch_data, label_data
 
-    dump_index = 5
+# 
+def distributed_setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+# 
+def cleanup():
+    dist.destroy_process_group()
+
+## main training function for multi GPU training
+def main_worker(rank, world_size, model_path: str = None):
+    # setup environment
+    distributed_setup(rank, world_size)
+    torch.cuda.set_device(rank)
+    device = torch.device(f'cuda:{rank}')
+    
+    # if main GPU, init logging
+    if rank == 0:
+        logger = logging.getLogger(__name__)
+        logging.basicConfig(
+            filename='training.log',
+            filemode='w',
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
+
+    # load configs
+    with open('train_config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+    
+    # read in config variables
+    num_dumps = config['num_dumps']
+    batch_size = config['batch_size']
+    num_epochs = config['num_epochs']
+    start_dump = config['start_dump']
+    end_dump = config['end_dump']
+
+    # change to dumps location for data reading
+    dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
+    os.chdir(dumps_path)
+    
+
+    ## setup model
+    model = B3_CNN().to(device)
+
+    # bring in model weights if model_path is provided
+    if model_path is not None:
+        model_dict_path = model_path
+        model_dict = torch.load(model_dict_path)
+        model.load_state_dict(model_dict)
+        if rank == 0:
+            model_weights_info_str = f"Loaded weights from: {model_path}"
+            logger.info(model_weights_info_str)
+            print(model_weights_info_str)
+    else:
+        if rank == 0:
+            model_weights_info_str = f"Randomly initializing weights."
+            logger.info(model_weights_info_str)
+            print(model_weights_info_str)
+
+    # get best validation from model, initially float('inf') for new model
+    best_val_loss = model.best_val_seen
+    
+    if rank == 0:
+        # summarize model 
+        summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
+        # model summary
+        model_summary_str = '\n'+str(summary_str)
+        logger.info(model_summary_str)
+        print(model_summary_str)
+
+        # training parameters
+        training_hyperparams_str = f'''
+        Training on dumps {start_dump} - {end_dump} 
+            number of epochs: {num_epochs}
+            batch size: {batch_size}
+            logging device: {device}
+        
+        '''
+        logger.info(training_hyperparams_str)
+        print(training_hyperparams_str)
+
+    # get indexes for training data
+    train_idxs, valid_idxs = custom_batcher(
+        batch_size=batch_size,
+        num_dumps=num_dumps,
+        split = 0.8,
+        seed=1,
+        start=start_dump,
+        end=end_dump,
+    )
+    
+    # distribute model to GPU devices
+    model = DDP(model, device_ids=[rank])
+    
+    # loss and optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters())
+    
+    # distributed sampler to shared data across GPUs 
+    train_sampler = DistributedSampler(train_idxs, num_replicas=world_size, rank=rank, shuffle=True)
+    valid_sampler = DistributedSampler(valid_idxs, num_replicas=world_size, rank=rank, shuffle=False)
+
+    # initial grid data read
+    block, nmax, n_ord = get_grid_data(dumps_path=dumps_path)
+    
+    # loss tracking
+    train_losses, valid_losses = [], []
+
+    ## training
+    for epoch in range(num_epochs):
+        train_start_time = time.time()
+        model.train()
+
+        train_sampler.set_epoch(epoch)
+        # train loss tracking
+        epoch_train_loss = []
+        # track the training batch number
+        train_batch_num = 1
+
+        # batch training
+        train_batches = torch.utils.data.DataLoader(train_idxs, batch_size=batch_size, sampler=train_sampler)
+        prog_bar = tqdm(train_batches, disable=rank != 0)
+        for batch_indexes in prog_bar:
+            start = time.time()
+            # construct batch of data manually
+            batch_data, label_data = construct_batch(
+                batch_indexes=batch_indexes.tolist(), 
+                dumps_path=dumps_path,
+                device=device,
+                block=block,
+                n_ord=n_ord,
+            )
+            # zero gradients
+            optimizer.zero_grad()
+            # compute prediction
+            pred = model.forward(batch_data)
+            # compute loss
+            loss = loss_fn(pred, label_data)
+            # backprop and update gradients
+            loss.backward()
+            optimizer.step()
+            # add loss to tracking
+            epoch_train_loss.append(loss.item())
+            
+            # increment batch number
+            train_batch_num += 1
+
+            # training batch logging
+            if rank == 0: 
+                batch_str = f'Train loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'
+                prog_bar.set_description(batch_str)
+                logger.info(batch_str)
+                print(batch_str)
+
+        train_loss_avg = sum(epoch_train_loss)/len(epoch_train_loss)
+        train_losses.append(train_loss_avg)
+        if rank == 0:
+            train_str = f"Completed train loss for epoch {epoch+1}: {train_loss_avg:.4f} in {time.time()-train_start_time:.2f} s"
+            prog_bar.set_description(train_str)
+            logger.info(train_str)
+            print(train_str)
+
+
+        ## validation
+        valid_start_time = time.time()
+        model.eval()
+        # loss tracking
+        epoch_valid_loss = []
+        # batch number counter
+        valid_batch_num = 1
+
+        ## batch validation
+        valid_batches = torch.utils.data.DataLoader(valid_idxs, batch_size=batch_size, sampler=valid_sampler)
+        prog_bar = tqdm(valid_batches, disable=rank != 0)
+        for batch_indexes in prog_bar:
+            start = time.time()
+            batch_data, label_data = [], []
+
+            # construct batch of data manually
+            batch_data, label_data = construct_batch(
+                batch_indexes=batch_indexes, 
+                dumps_path=dumps_path,
+                device=device,
+                block=block,
+                n_ord=n_ord,
+            )
+            # compute prediction
+            with torch.no_grad():
+                pred = model(batch_data)
+            # compute loss
+            loss = loss_fn(pred, label_data)
+            # log validation loss
+            epoch_valid_loss.append(loss.item())
+            # increment batch number
+            valid_batch_num += 1
+            # validation batch logging
+            if rank == 0: 
+                batch_str = f'Validation loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'
+                prog_bar.set_description(batch_str)
+                logger.info(batch_str)
+                print(batch_str)
+
+        if rank == 0:
+            val_loss_avg = sum(epoch_valid_loss)/len(epoch_valid_loss)
+
+            valid_str = f"Completed train loss for epoch {epoch+1}: {val_loss_avg:.4f} in {time.time()-valid_start_time:.2f} s"
+            prog_bar.set_description(train_str)
+            logger.info(valid_str)
+            print(valid_str)
+
+            valid_losses.append(val_loss_avg)
+
+            # save best model on rank 0
+            if val_loss_avg < best_val_loss:
+                best_val_loss = val_loss_avg
+                model_save_path = os.environ['HOME'] + '/bh/harm2d/' + model.module.save_path
+                model_save_info = f'Model saved at: {model_save_path}'
+                model.module.save(model_save_path)
+                logger.info(model_save_info)
+                print(model_save_info)
+
+    # Save training stats
+    if rank == 0:
+        with open(os.environ['HOME']+'/bh/harm2d/train_losses.pkl', 'wb') as f:
+            pickle.dump(train_losses, f)
+        with open(os.environ['HOME']+'/bh/harm2d/valid_losses.pkl', 'wb') as f:
+            pickle.dump(valid_losses, f)
+
+    cleanup()
+
+
+if __name__ == '__main__':
+    import pp_c
+
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
 
-    # setup and compile C functions
-    # setup_modules()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # get griddata
-    block, nmax, n_ord = rblock_new_ml(dumps_path=dumps_path)
+    if 'do_test' in sys.argv: do_test = True
+    else: do_test = False
+    # do_test = True
+    
+    if do_test:
+        num_dumps = 10
+        
+        # initial grid data read
+        block, nmax, n_ord = get_grid_data(dumps_path=dumps_path)
+        
+        start = time.time()
+        batch_indexes = [i for i in range(1,num_dumps+1)]
+        batch_data, label_data = construct_batch(batch_indexes=batch_indexes, dumps_path=dumps_path, device=device)
+        
+        print(batch_data.shape)
+        print(label_data.shape)
+        
+        print(f'async_read.py created tensorized batch of {num_dumps} dumps in: {time.time()-start:.4f}s')
+        
+    elif not do_test:
+        
+        print('No testing!')
 
-    start = time.time()
-    rho, ug, uu, B = rdump_griddata(
-        dump_dir=dumps_path, 
-        dump=dump_index,
-        block=block,
-        n_ord=n_ord,
-    )
-    print(f'rho shape: {rho.shape}')
-    f'Read time of {1} dumps {time.time()-start:.4f}s'
+    # if saved b3 model, continue training
+    path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.1.pth'
+    if os.path.exists(path_to_check):
+        model_path = path_to_check
+        
+    # otherwise no model, random init
+    else:
+        model_path = None
 
-
+    world_size = torch.cuda.device_count()
+    if world_size >= 1:
+        print(f"Starting distributed training on {world_size} GPUs...")
+        mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
     

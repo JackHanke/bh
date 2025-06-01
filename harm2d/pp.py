@@ -887,8 +887,6 @@ def rdump_griddata(dir, dump):
     global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
     import pp_c
 
-    print(gridsizex1)
-
     # Allocate memory
     rho = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
     ug = np.zeros((1, gridsizex1, gridsizex2, gridsizex3), dtype=mytype, order='C')
@@ -5889,20 +5887,20 @@ import pickle
 import yaml
 
 # training imports
-import torch
-from torchinfo import summary
 import numpy as np
 from tqdm import tqdm
-
-# training utilities
-from utils.sc_utils import custom_batcher, tensorize_globals
-from models.cnn.threed_cnn import *
-
+import torch
+from torchinfo import summary
 # distributed training
 import torch.distributed as dist  # NEW: Import for distributed training
 import torch.multiprocessing as mp  # NEW: Import for multiprocessing
 from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
 from torch.utils.data import Dataset, DataLoader, DistributedSampler
+
+# local training utilities
+from utils.sc_utils import custom_batcher, tensorize_globals
+from models.cnn.threed_cnn import *
+
 
 # set params
 lowres1 = 1 # 
@@ -5945,7 +5943,7 @@ def construct_batch(batch_indexes: list, dumps_path: str, device):
     return batch_data, label_data
 
 # 
-def setup(rank, world_size):
+def distributed_setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
@@ -5957,7 +5955,7 @@ def cleanup():
 ## main training function for multi GPU training
 def main_worker(rank, world_size, model_path: str = None):
     # setup environment
-    setup(rank, world_size)
+    distributed_setup(rank, world_size)
     torch.cuda.set_device(rank)
     device = torch.device(f'cuda:{rank}')
     
@@ -5988,7 +5986,7 @@ def main_worker(rank, world_size, model_path: str = None):
     
 
     ## setup model
-    model = B3_CNN().to(device)
+    model = B3_CNN(version_str='v0.1.1').to(device)
 
     # bring in model weights if model_path is provided
     if model_path is not None:
@@ -6291,7 +6289,7 @@ if __name__ == "__main__":
     # dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
     # os.chdir(dumps_path)
 
-    # frame_index = 15
+    # frame_index = 1
 
     # start = time.time()
     # rblock_new_ml()
@@ -6309,33 +6307,44 @@ if __name__ == "__main__":
     # rdump_griddata(dumps_path, frame_index)
     # print(f'time for rdump_griddata():{time.time()-start :.4f} s')
 
-    set_mpi(0)
+    # set_mpi(0)
     import pp_c
+
+    
+    # rblock_new_ml()
+    # start = time.time()
+    # num_dumps = 100
+    # for idx in [i for i in range(1, num_dumps)]:
+    #     rpar_new(idx)
+    #     rgdump_griddata(dumps_path)
+    #     rdump_griddata(dumps_path, idx)
+    # print(f'pp.py read time of {num_dumps} dumps: {time.time()-start:.4f}s')
+        
 
     
 
     ## if do_train passed when running this file, run training
-    if 'do_train' in sys.argv:
-        do_train = True
-    else:
-        do_train = False
+    # if 'do_train' in sys.argv:
+    #     do_train = True
+    # else:
+    #     do_train = False
 
-    ## if do_train, start training
-    if do_train:
-        # if saved b3 model, continue training
-        path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.0.pth'
-        if os.path.exists(path_to_check):
-            model_path = path_to_check
-            
-        # otherwise no model, random init
-        else:
-            model_path = None
-    
-        world_size = torch.cuda.device_count()
-        if world_size > 1:
-            print(f"Starting distributed training on {world_size} GPUs...")
-            mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
-        else:
-            print(f"Starting single GPU training...")
-            train()
+    # ## if do_train, start training
+    # if do_train:
+    # if saved b3 model, continue training
+    path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.1.pth'
+    if os.path.exists(path_to_check):
+        model_path = path_to_check
+        
+    # otherwise no model, random init
+    else:
+        model_path = None
+
+    world_size = torch.cuda.device_count()
+    if world_size > 1:
+        print(f"Starting distributed training on {world_size} GPUs...")
+        mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
+    else:
+        print(f"Starting single GPU training...")
+        train()
     
