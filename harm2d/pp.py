@@ -5942,6 +5942,227 @@ def construct_batch(batch_indexes: list, dumps_path: str, device):
     label_data = torch.cat(label_data).to(device)
     return batch_data, label_data
 
+
+# training script
+def train(device):
+    global notebook, axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
+    global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
+    global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
+
+    logger = logging.getLogger(__name__)
+    # logs saves to training.log in harm2d directory
+    logging.basicConfig(
+        filename='training.log',
+        filemode='w',
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+
+    import yaml
+    with open('train_config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+
+    # path to dumps
+    dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
+    os.chdir(dumps_path)
+
+    print('--- Training script running! ---')
+
+    # number of data points
+    num_dumps = config['num_dumps']
+    # batch size
+    batch_size = config['batch_size']
+    # number of epochs
+    num_epochs = config['num_epochs']
+    # get range of dumps, from start inclusive to end exclusive
+    start_dump = config['start_dump']
+    end_dump = config['end_dump']
+    # access device, cuda device if accessible
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    training_hyperparams_str = f'Training on dumps {start_dump} - {end_dump} for {num_epochs} epochs at batch size = {batch_size} on {device} device.'
+    print(training_hyperparams_str)
+    logger.info(training_hyperparams_str)
+
+    # set model
+    model = B3_CNN().to(device)
+    
+    summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
+    logger.info('\n'+str(summary_str))
+
+    # set loss
+    optim = torch.optim.Adam(params=model.parameters())
+    loss_fn = torch.nn.MSELoss()
+
+    # get indexes for training data
+    train_indexes, validation_indexes = custom_batcher(
+        batch_size=batch_size,
+        num_dumps=num_dumps,
+        split = 0.8,
+        seed=1,
+        start=start_dump,
+        end=end_dump,
+    )
+
+    num_train_batches = len(train_indexes)//batch_size
+    num_valid_batches = len(validation_indexes)//batch_size
+
+    best_validation = float('inf')
+
+    # rewrite for performance
+    rblock_new_ml()
+
+    for epoch in range(num_epochs):
+        ## Training
+        model.train()
+        epoch_train_loss = []
+
+        # shuffle training indexes
+        np.random.shuffle(train_indexes)
+
+        # list of average train/validation losses after each epoch
+        train_losses, valid_losses = [], []
+
+        prog_bar = tqdm(enumerate(train_indexes.reshape(-1, batch_size)), total=num_train_batches)
+        for batch_num, batch_indexes in prog_bar:
+            start = time.time()
+            ## fetch and tensorize data
+            # NOTE everything is a global variable so it has to be this way. im sorry
+            batch_data, label_data = [], []
+            # batch_idx is the dump number
+            for batch_idx in batch_indexes:
+
+                # at every batch of size batch_size, we need to read in 2 * batch_size dumps
+                
+                ## get data frame
+                # get data into global context NOTE this is really slow
+                # rblock_new(batch_idx)
+                rpar_new(batch_idx)
+                # get grid data
+                rgdump_griddata(dumps_path)
+                rdump_griddata(dumps_path, batch_idx)
+                # format data as tensor
+                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
+                # add to batch
+                batch_data.append(data_tensor)
+
+                ## get label frame
+                # get data into global context
+                # rblock_new(batch_idx+1)
+                rpar_new(batch_idx+1)
+                # rgdump_griddata(dumps_path)
+                rdump_griddata(dumps_path, batch_idx+1)
+                # format data as tensor
+                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
+                # add to batch
+                label_data.append(data_tensor)
+
+            # final tensorize
+            batch_data = torch.cat(batch_data, dim=0).to(device)
+            label_data = torch.cat(label_data, dim=0).to(device)
+
+            logger.info(f'batch size {batch_size} data made in {time.time()-start:.4f} ')
+
+            ## train model
+            # make prediction
+            pred = model.forward(batch_data)
+            # compute loss
+            loss_value = loss_fn(pred, label_data)
+            epoch_train_loss.append(loss_value)
+            # backprop
+            loss_value.backward()
+            # update paramts
+            optim.step()
+
+            # memory save maybe idk
+            del batch_data
+            del label_data
+            torch.cuda.empty_cache()
+
+            # training batch logging
+            batch_str = f'Epoch {epoch+1} train batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s'
+            prog_bar.set_description(batch_str)
+            logger.debug(batch_str)
+
+        # training loss tracking
+        avg_loss_after_epoch = sum(epoch_train_loss)/len(epoch_train_loss)
+        train_losses.append(avg_loss_after_epoch)
+
+        # training logging
+        train_loss_str = f"Epoch {epoch+1} train loss: {avg_loss_after_epoch:.4f}"
+        logger.info(train_loss_str)
+        print(train_loss_str)
+
+
+        ## Validation
+        model.eval()
+        epoch_valid_loss = []
+
+        prog_bar = tqdm(enumerate(validation_indexes.reshape(-1, batch_size)), total=num_valid_batches)
+        for batch_num, batch_indexes in prog_bar:
+            ## fetch and tensorize data
+            # NOTE everything is a global variable so it has to be this way. im sorry
+            batch_data, label_data = [], []
+            # batch_idx is the dump number
+            start = time.time()
+            for batch_idx in batch_indexes:
+                ## get data frame
+                # get data into global context
+                rpar_new(batch_idx)
+                rgdump_griddata(dumps_path)
+                rdump_griddata(dumps_path, batch_idx)
+                # format data as tensor
+                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
+                # add to batch
+                batch_data.append(data_tensor)
+
+                ## get label frame
+                # get data into global context
+                rpar_new(batch_idx+1)
+                rgdump_griddata(dumps_path)
+                rdump_griddata(dumps_path, batch_idx+1)
+                # format data as tensor
+                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
+                # add to batch
+                label_data.append(data_tensor)
+
+            # final tensorize
+            batch_data = torch.cat(batch_data, dim=0).to(device)
+            label_data = torch.cat(label_data, dim=0).to(device)
+
+            # make prediction
+            pred = model.forward(batch_data)
+
+            # compute loss
+            loss_value = loss_fn(pred, label_data)
+            epoch_valid_loss.append(loss_value)
+            
+            # validation batch logging
+            validation_str = f'Epoch {epoch+1} validation batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s.'
+            prog_bar.set_description(validation_str)
+            
+        avg_vloss_after_epoch = sum(epoch_valid_loss)/len(epoch_valid_loss)
+        valid_losses.append(avg_vloss_after_epoch)
+
+        # validation logging
+        validation_loss_str = f"Epoch {epoch+1} valid loss value: {avg_loss_after_epoch:.4f}"
+        print(validation_loss_str)
+        logger.info(validation_loss_str)
+
+        # checkpointing
+        if avg_vloss_after_epoch < best_validation:
+            best_validation = avg_vloss_after_epoch
+            save_path = os.environ['HOME'] + '/bh/harm2d/' + model.save_path
+            model.save(save_path=save_path)
+
+    ## pickle training and validation loss (for external plotting)
+    workdir = os.environ['HOME']+'/bh/harm2d/'
+    with open(workdir+'train_losses.pkl', 'wb') as f:
+        pickle.dump(train_losses, f)
+    with open(workdir+'valid_losses.pkl', 'wb') as f:
+        pickle.dump(valid_losses, f)
+
+
 # 
 def distributed_setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
@@ -5986,7 +6207,7 @@ def main_worker(rank, world_size, model_path: str = None):
     
 
     ## setup model
-    model = B3_CNN(version_str='v0.1.1').to(device)
+    model = B3_CNN().to(device)
 
     # bring in model weights if model_path is provided
     if model_path is not None:
@@ -6289,62 +6510,26 @@ if __name__ == "__main__":
     # dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
     # os.chdir(dumps_path)
 
-    # frame_index = 1
-
-    # start = time.time()
-    # rblock_new_ml()
-    # print(f'time for rblock_new_ml():{time.time()-start :.4f} s')
-    
-    # start = time.time()
-    # rpar_new(frame_index)
-    # print(f'time for rpar_new():{time.time()-start :.4f} s')
-    
-    # start = time.time()
-    # rgdump_griddata(dumps_path)
-    # print(f'time for rgdump_griddata():{time.time()-start :.4f} s')
-    
-    # start = time.time()
-    # rdump_griddata(dumps_path, frame_index)
-    # print(f'time for rdump_griddata():{time.time()-start :.4f} s')
 
     # set_mpi(0)
-    import pp_c
+    # import pp_c
 
-    
-    # rblock_new_ml()
-    # start = time.time()
-    # num_dumps = 100
-    # for idx in [i for i in range(1, num_dumps)]:
-    #     rpar_new(idx)
-    #     rgdump_griddata(dumps_path)
-    #     rdump_griddata(dumps_path, idx)
-    # print(f'pp.py read time of {num_dumps} dumps: {time.time()-start:.4f}s')
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # train(device=device)
+
+    # path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.1.pth'
+    # if os.path.exists(path_to_check):
+    #     model_path = path_to_check
         
-
-    
-
-    ## if do_train passed when running this file, run training
-    # if 'do_train' in sys.argv:
-    #     do_train = True
+    # # otherwise no model, random init
     # else:
-    #     do_train = False
+    #     model_path = None
 
-    # ## if do_train, start training
-    # if do_train:
-    # if saved b3 model, continue training
-    path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.1.pth'
-    if os.path.exists(path_to_check):
-        model_path = path_to_check
-        
-    # otherwise no model, random init
-    else:
-        model_path = None
-
-    world_size = torch.cuda.device_count()
-    if world_size > 1:
-        print(f"Starting distributed training on {world_size} GPUs...")
-        mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
-    else:
-        print(f"Starting single GPU training...")
-        train()
+    # world_size = torch.cuda.device_count()
+    # if world_size > 1:
+    #     print(f"Starting distributed training on {world_size} GPUs...")
+    #     mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
+    # else:
+    #     print(f"Starting single GPU training...")
+    #     train()
     
