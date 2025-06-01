@@ -6151,7 +6151,7 @@ def main_worker(rank, world_size, model_path: str = None):
 
             # training batch logging
             if rank == 0: 
-                batch_str = f'Epoch {epoch+1} Batch {train_batch_num} train completed with loss {loss.item():.4f} in {time.time()-start:.2f}s'
+                batch_str = f'Train loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'
                 prog_bar.set_description(batch_str)
                 logger.info(batch_str)
                 print(batch_str)
@@ -6159,7 +6159,7 @@ def main_worker(rank, world_size, model_path: str = None):
         train_loss_avg = sum(epoch_train_loss)/len(epoch_train_loss)
         train_losses.append(train_loss_avg)
         if rank == 0:
-            train_str = f"Epoch {epoch+1} train loss: {train_loss_avg:.4f} in {time.time()-train_start_time:.2f} s"
+            train_str = f"Completed train loss for epoch {epoch+1}: {train_loss_avg:.4f} in {time.time()-train_start_time:.2f} s"
             prog_bar.set_description(train_str)
             logger.info(train_str)
             print(train_str)
@@ -6187,7 +6187,8 @@ def main_worker(rank, world_size, model_path: str = None):
                 device=device
             )
             # compute prediction
-            pred = model.inference(batch_data)
+            with torch.no_grad():
+                pred = model(batch_data)
             # compute loss
             loss = loss_fn(pred, label_data)
             # log validation loss
@@ -6196,7 +6197,7 @@ def main_worker(rank, world_size, model_path: str = None):
             valid_batch_num += 1
             # validation batch logging
             if rank == 0: 
-                batch_str = f'Epoch {epoch+1} Batch {valid_batch_num} validation completed with loss {loss.item():.4f} in {time.time()-start:.2f}s'
+                batch_str = f'Validation loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'
                 prog_bar.set_description(batch_str)
                 logger.info(batch_str)
                 print(batch_str)
@@ -6204,7 +6205,7 @@ def main_worker(rank, world_size, model_path: str = None):
         if rank == 0:
             val_loss_avg = sum(epoch_valid_loss)/len(epoch_valid_loss)
 
-            valid_str = f"Epoch {epoch+1} train loss: {val_loss_avg:.4f} in {time.time()-valid_start_time:.2f} s"
+            valid_str = f"Completed train loss for epoch {epoch+1}: {val_loss_avg:.4f} in {time.time()-valid_start_time:.2f} s"
             prog_bar.set_description(train_str)
             logger.info(valid_str)
             print(valid_str)
