@@ -9,25 +9,10 @@ this_script_full_path = inspect.stack()[0][1]
 dirname = os.path.dirname(this_script_full_path)
 sys.path.append(dirname)
 
-from setuptools import setup
-# from distutils.core import setup
+# from setuptools import setup
+from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
-
-# 
-# def setup_modules():
-setup(
-    cmdclass={'build_ext': build_ext},
-    ext_modules=[
-        Extension(
-            "pp_c", 
-            sources=["pp_c.pyx", "functions.c"], 
-            include_dirs=[np.get_include()], 
-            extra_compile_args=["-fopenmp"], 
-            extra_link_args=["-O2 -fopenmp"]
-        )
-    ]
-)
 
 
 # rblock_new_ml()
@@ -297,6 +282,21 @@ def rdump_griddata(
     ## hardcode unchaging global variables
     # set_mpi 
     rank = 0
+    r_min, r_max = 1.0, 100.0
+    theta_min, theta_max = 0.0, 9
+    phi_min, phi_max = -1, 9
+    do_box=0
+    set_cart=0
+    axisym=1
+    print_fieldlines=0
+    export_raytracing_GRTRANS=0
+    export_raytracing_RAZIEH=0
+    kerr_schild=0
+    DISK_THICKNESS=0.03
+    check_files=1
+    # notebook=1
+    interpolate_var=0
+    AMR = 0 # get all data in grid
     
     gridsizex1 = 224
     gridsizex2 = 48
@@ -326,8 +326,8 @@ def rdump_griddata(
     # np.max(block[n_ord, AMR_LEVEL1]) = 1
     # np.max(block[n_ord, AMR_LEVEL2]) = 1
     # np.max(block[n_ord, AMR_LEVEL3]) = 1
-    export_raytracing_RAZIEH = 0
-    DISK_THICKNESS = 0.03
+    # export_raytracing_RAZIEH = 0
+    # DISK_THICKNESS = 0.03
     a = 0.94
     gam = 1.6666666666666667
     startx1 = 0.09509474077300727
@@ -410,7 +410,7 @@ def rdump_griddata(
         np.int32(RESISTIVE), 
         TWO_T, 
         P_NUM, 
-        dir, 
+        dump_dir, 
         dump, 
         n_active_total, 
         lowres1, 
@@ -487,6 +487,19 @@ def rdump_griddata(
 
 if __name__ == '__main__':
 
+    setup(
+        cmdclass={'build_ext': build_ext},
+        ext_modules=[
+            Extension(
+                "pp_c", 
+                sources=["pp_c.pyx", "functions.c"], 
+                include_dirs=[np.get_include()], 
+                extra_compile_args=["-fopenmp"], 
+                extra_link_args=["-O2 -fopenmp"]
+            )
+        ]
+    )
+
     dump_index = 5
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
 
@@ -503,8 +516,8 @@ if __name__ == '__main__':
         block=block,
         n_ord=n_ord,
     )
-    print(f'rho shape: {rho.shape()}')
-    f'Read time of dump {dump} {time.time()-start:.4f}s'
+    print(f'rho shape: {rho.shape}')
+    f'Read time of {1} dumps {time.time()-start:.4f}s'
 
 
     

@@ -6309,6 +6309,9 @@ if __name__ == "__main__":
     # rdump_griddata(dumps_path, frame_index)
     # print(f'time for rdump_griddata():{time.time()-start :.4f} s')
 
+    set_mpi(0)
+    import pp_c
+
     
 
     ## if do_train passed when running this file, run training
