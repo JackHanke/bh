@@ -152,9 +152,9 @@ class B3_CNN(nn.Module):
     
     # full forward pass for x
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.bottleneck_layers(x)
-        x = self.decoder(x)
+        x1 = self.encoder(x)
+        x1 = self.bottleneck_layers(x1)
+        x1 = self.decoder(x1) + x # residual
         return x
         
     # encode raw x

@@ -1,13 +1,37 @@
-
+import os
+import sys
 import time
 import numpy as np
 
-# 
+import inspect 	
 
+this_script_full_path = inspect.stack()[0][1]
+dirname = os.path.dirname(this_script_full_path)
+sys.path.append(dirname)
+
+from setuptools import setup
+# from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+
+# 
+# def setup_modules():
+setup(
+    cmdclass={'build_ext': build_ext},
+    ext_modules=[
+        Extension(
+            "pp_c", 
+            sources=["pp_c.pyx", "functions.c"], 
+            include_dirs=[np.get_include()], 
+            extra_compile_args=["-fopenmp"], 
+            extra_link_args=["-O2 -fopenmp"]
+        )
+    ]
+)
 
 
 # rblock_new_ml()
-def rblock_new_ml():
+def rblock_new_ml(dumps_path: str):
     global AMR_ACTIVE, AMR_LEVEL,AMR_LEVEL1,AMR_LEVEL2,AMR_LEVEL3, AMR_REFINED, AMR_COORD1, AMR_COORD2, AMR_COORD3, AMR_PARENT
     global AMR_CHILD1, AMR_CHILD2, AMR_CHILD3, AMR_CHILD4, AMR_CHILD5, AMR_CHILD6, AMR_CHILD7, AMR_CHILD8
     global AMR_NBR1, AMR_NBR2, AMR_NBR3, AMR_NBR4, AMR_NBR5, AMR_NBR6, AMR_NODE, AMR_POLE, AMR_GROUP
@@ -29,9 +53,11 @@ def rblock_new_ml():
     AMR_ACTIVE, AMR_LEVEL, AMR_REFINED = 0,1,2
     AMR_LEVEL1, AMR_LEVEL2, AMR_LEVEL3 = 110,111,112
 
-    if(os.path.isfile("gdumps/grid")):
-        fin = open("gdumps/grid", "rb")
-        size = os.path.getsize("gdumps/grid")
+    grid_path = dumps_path + "/gdumps/grid"
+
+    if(os.path.isfile(grid_path)):
+        fin = open(grid_path, "rb")
+        size = os.path.getsize(grid_path)
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
 
@@ -39,8 +65,8 @@ def rblock_new_ml():
         print("Cannot find grid file!")
         return
 
-    with open("gdumps/grid", "rb") as fin:
-        size = os.path.getsize("gdumps/grid")
+    with open(grid_path, "rb") as fin:
+        size = os.path.getsize(grid_path)
         nmax = np.fromfile(fin, dtype=np.int32, count=1, sep='')[0]
         NV = (size - 1) // nmax // 4
         block = np.zeros((nmax, 200), dtype=np.int32, order='C')
@@ -257,10 +283,10 @@ def rgdump_griddata(dir):
 
 # rdump_griddata
 def rdump_griddata(
-    dump_dir: str, 
-    dump: int,
-    n_ord: np.array,
-    bloack: np.array,
+        dump_dir: str, 
+        dump: int,
+        block: np.array,
+        n_ord: np.array,
     ):
     # global rho, ug, uu, B
     # global uu_rad, E_rad, E,  TE, TI, photon_number, RAD_M1, RESISTIVE, TWO_T, P_NUM, nb2d, bs1,bs2,bs3,bs1new,bs2new,bs3new,lowres1, lowres2, lowres3, gcov,gcon,axisym,_dx1,_dx2,_dx3, nb, nb1, nb2, nb3, REF_1, REF_2, REF_3, n_ord, interpolate_var, export_raytracing_GRTRANS,export_raytracing_RAZIEH, DISK_THICKNESS, a, gam, bsq, Rdot
@@ -268,15 +294,18 @@ def rdump_griddata(
     # global r_min, r_max, theta_min, theta_max, phi_min, phi_max, i_min, i_max, j_min, j_max, z_min, z_max, do_box, check_files
     import pp_c
 
-    # hardcode unchaging global variables
+    ## hardcode unchaging global variables
+    # set_mpi 
+    rank = 0
+    
     gridsizex1 = 224
     gridsizex2 = 48
     gridsizex3 = 96
     mytype = np.float32
     flag = 0
     interpolate_var = 0
-    np.int32(RAD_M1) = 0
-    np.int32(RESISTIVE) = 0
+    RAD_M1 = np.int32(0)
+    RESISTIVE = np.int32(0)
     TWO_T = 0
     P_NUM = 0
     n_active_total = 456
@@ -294,9 +323,9 @@ def rdump_griddata(
     REF_1 = 1
     REF_2 = 1
     REF_3 = 1
-    np.max(block[n_ord, AMR_LEVEL1]) = 1
-    np.max(block[n_ord, AMR_LEVEL2]) = 1
-    np.max(block[n_ord, AMR_LEVEL3]) = 1
+    # np.max(block[n_ord, AMR_LEVEL1]) = 1
+    # np.max(block[n_ord, AMR_LEVEL2]) = 1
+    # np.max(block[n_ord, AMR_LEVEL3]) = 1
     export_raytracing_RAZIEH = 0
     DISK_THICKNESS = 0.03
     a = 0.94
@@ -368,10 +397,10 @@ def rdump_griddata(
     if (os.path.isfile("dumps%d/new_dump" % dump)):
         flag = 1
     else:
-        if (rank == 0 and check_files == 10):
-            for count in range(0, 5400):
-                if (os.path.isfile("dumps%d/new_dump%d" %(dump, count))==0):
-                    print("Dump file %d in folder %d doesn't exist" %(count,dump))
+        # if (rank == 0 and check_files == 10):
+        #     for count in range(0, 5400):
+        #         if (os.path.isfile("dumps%d/new_dump%d" %(dump, count))==0):
+        #             print("Dump file %d in folder %d doesn't exist" %(count,dump))
         flag = 0
 
     pp_c.rdump_griddata(
@@ -461,12 +490,15 @@ if __name__ == '__main__':
     dump_index = 5
     dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
 
+    # setup and compile C functions
+    # setup_modules()
+
     # get griddata
-    block, nmax, n_ord = rblock_new_ml()
+    block, nmax, n_ord = rblock_new_ml(dumps_path=dumps_path)
 
     start = time.time()
     rho, ug, uu, B = rdump_griddata(
-        dir=dumps_path, 
+        dump_dir=dumps_path, 
         dump=dump_index,
         block=block,
         n_ord=n_ord,

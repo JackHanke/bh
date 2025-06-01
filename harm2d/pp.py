@@ -6288,26 +6288,26 @@ if __name__ == "__main__":
     #post_process(dirr, 11,12,1)
 
     
-    dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
-    os.chdir(dumps_path)
+    # dumps_path = '/pscratch/sd/l/lalakos/ml_data_rc300/reduced'
+    # os.chdir(dumps_path)
 
-    frame_index = 15
+    # frame_index = 15
 
-    start = time.time()
-    rblock_new_ml()
-    print(f'time for rblock_new_ml():{time.time()-start :.4f} s')
+    # start = time.time()
+    # rblock_new_ml()
+    # print(f'time for rblock_new_ml():{time.time()-start :.4f} s')
     
-    start = time.time()
-    rpar_new(frame_index)
-    print(f'time for rpar_new():{time.time()-start :.4f} s')
+    # start = time.time()
+    # rpar_new(frame_index)
+    # print(f'time for rpar_new():{time.time()-start :.4f} s')
     
-    start = time.time()
-    rgdump_griddata(dumps_path)
-    print(f'time for rgdump_griddata():{time.time()-start :.4f} s')
+    # start = time.time()
+    # rgdump_griddata(dumps_path)
+    # print(f'time for rgdump_griddata():{time.time()-start :.4f} s')
     
-    start = time.time()
-    rdump_griddata(dumps_path, frame_index)
-    print(f'time for rdump_griddata():{time.time()-start :.4f} s')
+    # start = time.time()
+    # rdump_griddata(dumps_path, frame_index)
+    # print(f'time for rdump_griddata():{time.time()-start :.4f} s')
 
     
 
