@@ -7,4 +7,4 @@ batch_size: 20
 # start dump number to train on
 start_dump: 3000
 # end dump to train on 
-end_dump: 3100
+end_dump: 3500

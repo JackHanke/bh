@@ -5937,14 +5937,13 @@ def construct_batch(batch_indexes: list, dumps_path: str, device):
         rpar_new(idx+1)
         rdump_griddata(dumps_path, idx+1)
         label_data.append(tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B))
-
-    batch_data = torch.cat(batch_data).to(device)
-    label_data = torch.cat(label_data).to(device)
+    batch_data = torch.cat(batch_data)
+    label_data = torch.cat(label_data)
     return batch_data, label_data
 
 
 # training script
-def train(device):
+def train(model_path: str, device):
     global notebook, axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
     global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
     global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
@@ -5986,6 +5985,21 @@ def train(device):
 
     # set model
     model = B3_CNN().to(device)
+
+    # bring in model weights if model_path is provided
+    if model_path is not None:
+        model_dict_path = model_path
+        model_dict = torch.load(model_dict_path)
+        model.load_state_dict(model_dict)
+        if rank == 0:
+            model_weights_info_str = f"Loaded weights from: {model_path}"
+            logger.info(model_weights_info_str)
+            print(model_weights_info_str)
+    else:
+        if rank == 0:
+            model_weights_info_str = f"Randomly initializing weights."
+            logger.info(model_weights_info_str)
+            print(model_weights_info_str)
     
     summary_str = summary(model, input_size=(batch_size, 8, 224, 48, 96))
     logger.info('\n'+str(summary_str))
@@ -6026,40 +6040,16 @@ def train(device):
         prog_bar = tqdm(enumerate(train_indexes.reshape(-1, batch_size)), total=num_train_batches)
         for batch_num, batch_indexes in prog_bar:
             start = time.time()
-            ## fetch and tensorize data
-            # NOTE everything is a global variable so it has to be this way. im sorry
-            batch_data, label_data = [], []
-            # batch_idx is the dump number
-            for batch_idx in batch_indexes:
-
-                # at every batch of size batch_size, we need to read in 2 * batch_size dumps
-                
-                ## get data frame
-                # get data into global context NOTE this is really slow
-                # rblock_new(batch_idx)
-                rpar_new(batch_idx)
-                # get grid data
-                rgdump_griddata(dumps_path)
-                rdump_griddata(dumps_path, batch_idx)
-                # format data as tensor
-                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
-                # add to batch
-                batch_data.append(data_tensor)
-
-                ## get label frame
-                # get data into global context
-                # rblock_new(batch_idx+1)
-                rpar_new(batch_idx+1)
-                # rgdump_griddata(dumps_path)
-                rdump_griddata(dumps_path, batch_idx+1)
-                # format data as tensor
-                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
-                # add to batch
-                label_data.append(data_tensor)
-
-            # final tensorize
-            batch_data = torch.cat(batch_data, dim=0).to(device)
-            label_data = torch.cat(label_data, dim=0).to(device)
+            
+            # construct batch of data manually
+            batch_data, label_data = construct_batch(
+                batch_indexes=batch_indexes, 
+                dumps_path=dumps_path,
+                device=device
+            )
+            
+            # send data to device
+            batch_data, label_data = batch_data.to(device), label_data.to(device)
 
             logger.info(f'batch size {batch_size} data made in {time.time()-start:.4f} ')
 
@@ -6071,12 +6061,14 @@ def train(device):
             epoch_train_loss.append(loss_value)
             # backprop
             loss_value.backward()
+            # clip gradients to 1
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
             # update paramts
             optim.step()
 
             # memory save maybe idk
-            del batch_data
-            del label_data
+            batch_data = None
+            label_data = None
             torch.cuda.empty_cache()
 
             # training batch logging
@@ -6095,51 +6087,37 @@ def train(device):
 
 
         ## Validation
-        model.eval()
-        epoch_valid_loss = []
+        with torch.no_grad():
+            model.eval()
+            epoch_valid_loss = []
+    
+            prog_bar = tqdm(enumerate(validation_indexes.reshape(-1, batch_size)), total=num_valid_batches)
+            for batch_num, batch_indexes in prog_bar:
+                # construct batch of data manually
+                batch_data, label_data = construct_batch(
+                    batch_indexes=batch_indexes, 
+                    dumps_path=dumps_path,
+                    device=device
+                )
+                
+                # send data to device
+                batch_data, label_data = batch_data.to(device), label_data.to(device)
+    
+                # make prediction
+                pred = model.forward(batch_data)
+    
+                # compute loss
+                loss_value = loss_fn(pred, label_data)
+                epoch_valid_loss.append(loss_value)
 
-        prog_bar = tqdm(enumerate(validation_indexes.reshape(-1, batch_size)), total=num_valid_batches)
-        for batch_num, batch_indexes in prog_bar:
-            ## fetch and tensorize data
-            # NOTE everything is a global variable so it has to be this way. im sorry
-            batch_data, label_data = [], []
-            # batch_idx is the dump number
-            start = time.time()
-            for batch_idx in batch_indexes:
-                ## get data frame
-                # get data into global context
-                rpar_new(batch_idx)
-                rgdump_griddata(dumps_path)
-                rdump_griddata(dumps_path, batch_idx)
-                # format data as tensor
-                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
-                # add to batch
-                batch_data.append(data_tensor)
-
-                ## get label frame
-                # get data into global context
-                rpar_new(batch_idx+1)
-                rgdump_griddata(dumps_path)
-                rdump_griddata(dumps_path, batch_idx+1)
-                # format data as tensor
-                data_tensor = tensorize_globals(rho=np.log10(rho), ug=np.log10(ug), uu=uu, B=B)
-                # add to batch
-                label_data.append(data_tensor)
-
-            # final tensorize
-            batch_data = torch.cat(batch_data, dim=0).to(device)
-            label_data = torch.cat(label_data, dim=0).to(device)
-
-            # make prediction
-            pred = model.forward(batch_data)
-
-            # compute loss
-            loss_value = loss_fn(pred, label_data)
-            epoch_valid_loss.append(loss_value)
-            
-            # validation batch logging
-            validation_str = f'Epoch {epoch+1} validation batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s.'
-            prog_bar.set_description(validation_str)
+                # memory save maybe idk
+                batch_data = None
+                label_data = None
+                torch.cuda.empty_cache()
+                
+                # validation batch logging
+                validation_str = f'Epoch {epoch+1} validation batch {batch_num+1} completed with loss {loss_value.item():.4f} in {time.time()-start:.2f}s.'
+                prog_bar.set_description(validation_str)
             
         avg_vloss_after_epoch = sum(epoch_valid_loss)/len(epoch_valid_loss)
         valid_losses.append(avg_vloss_after_epoch)
@@ -6289,12 +6267,16 @@ def main_worker(rank, world_size, model_path: str = None):
         prog_bar = tqdm(train_batches, disable=rank != 0)
         for batch_indexes in prog_bar:
             start = time.time()
+            
             # construct batch of data manually
             batch_data, label_data = construct_batch(
                 batch_indexes=batch_indexes, 
                 dumps_path=dumps_path,
                 device=device
             )
+            # send data to device
+            batch_data, label_data = batch_data.to(device), label_data.to(device)
+            
             # zero gradients
             optimizer.zero_grad()
             # compute prediction
@@ -6347,6 +6329,9 @@ def main_worker(rank, world_size, model_path: str = None):
                 dumps_path=dumps_path,
                 device=device
             )
+            # send data to device
+            batch_data, label_data = batch_data.to(device), label_data.to(device)
+            
             # compute prediction
             with torch.no_grad():
                 pred = model(batch_data)
@@ -6514,16 +6499,19 @@ if __name__ == "__main__":
     # set_mpi(0)
     # import pp_c
 
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # train(device=device)
-
-    # path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.1.pth'
-    # if os.path.exists(path_to_check):
-    #     model_path = path_to_check
+    path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.0.pth'
+    if os.path.exists(path_to_check):
+        model_path = path_to_check
         
-    # # otherwise no model, random init
-    # else:
-    #     model_path = None
+    # otherwise no model, random init
+    else:
+        model_path = None
+        
+    model_path = None
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    train(model_path=model_path, device=device)
+
 
     # world_size = torch.cuda.device_count()
     # if world_size > 1:

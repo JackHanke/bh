@@ -48,7 +48,9 @@ class B3_CNN(nn.Module):
             nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
             nn.GELU(),
             nn.Upsample(scale_factor=2, mode='trilinear'),
-            nn.ConvTranspose3d(in_channels=32, out_channels=8, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
+            nn.GELU(),
+            nn.ConvTranspose3d(in_channels=64, out_channels=8, kernel_size=1, stride=1, padding=0),
         )
     
     # full forward pass for x
@@ -56,6 +58,7 @@ class B3_CNN(nn.Module):
         x1 = self.encoder(x)
         x1 = self.bottleneck_layers(x1)
         x1 = self.decoder(x1) + x # residual connection
+        # x1 = self.decoder(x1)
         return x1
         
     # encode raw x
