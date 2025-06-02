@@ -24,14 +24,14 @@ class B3_CNN(nn.Module):
         ## architecture
 
         # encoder
-        self.encoder = nn.Sequential(
-            nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.MaxPool3d(2, stride=2),
-            nn.GELU(),
-            nn.Conv3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.MaxPool3d(2, stride=2),
-            nn.GELU(),
-        )
+        # self.encoder = nn.Sequential()
+            
+        self.downconv1 = nn.Conv3d(in_channels=input_channels, out_channels=32, kernel_size=4, stride=2, padding=1)
+        self.max1 = nn.MaxPool3d(2, stride=2)
+        self.downact1 = nn.GELU()
+        self.downconv2 = nn.Conv3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1)
+        self.max2 = nn.MaxPool3d(2, stride=2)
+        self.downact2 = nn.GELU()
 
         # bottleneck
         self.bottleneck_layers = nn.Sequential(
@@ -43,31 +43,45 @@ class B3_CNN(nn.Module):
         )
         
         # decoder
-        self.decoder = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='trilinear'),
-            nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1),
-            nn.GELU(),
-            nn.Upsample(scale_factor=2, mode='trilinear'),
-            nn.ConvTranspose3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1),
-            nn.GELU(),
-            nn.ConvTranspose3d(in_channels=64, out_channels=8, kernel_size=1, stride=1, padding=0),
-        )
+        # self.decoder = nn.Sequential()
+
+        self.up1 = nn.Upsample(scale_factor=2, mode='trilinear')
+        self.upconv1 = nn.ConvTranspose3d(in_channels=64, out_channels=32, kernel_size=4, stride=2, padding=1)
+        self.upact1 = nn.GELU()
+        self.up2 = nn.Upsample(scale_factor=2, mode='trilinear')
+        self.upconv2 = nn.ConvTranspose3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1)
+        self.upact2 = nn.GELU()
+        self.upconv3 = nn.ConvTranspose3d(in_channels=64, out_channels=8, kernel_size=1, stride=1, padding=0)
     
     # full forward pass for x
     def forward(self, x):
-        x1 = self.encoder(x)
-        x1 = self.bottleneck_layers(x1)
-        x1 = self.decoder(x1) + x # residual connection
-        # x1 = self.decoder(x1)
-        return x1
+        x1 = self.downconv1(x)
+
+        x2 = self.downconv2(self.downact1(self.max1(x1)))
+
+        x3 = self.downact2(self.max2(x2))
+
+        x4 = self.bottleneck_layers(x3)
+
+        x5 = self.up1(x4) + x2
+
+        x6 = self.up2(self.upact1(self.upconv1(x5))) + x1
+
+        x7 = self.upact2(self.upconv2(x6))
+
+        x8 = self.upconv3(x7)
+
+        return x8 + x
         
     # encode raw x
     def encode(self, x):
-        return self.encoder(x)
+        pass
+        # return self.encoder(x)
 
     # decode latent x
     def decode(self, x):
-        return self.decoder(x)
+        pass
+        # return self.decoder(x)
 
     # bottleneck layer
     def bottleneck(self, x):
@@ -642,8 +656,8 @@ if __name__ == '__main__':
     if sc_testing:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        # model = B3_CNN().to(device)
-        model = CNN_3D().to(device)
+        model = B3_CNN().to(device)
+        # model = CNN_3D().to(device)
         # model = CNN_3D_UnetStyle().to(device)
 
         loss_fn = torch.nn.MSELoss()
@@ -661,8 +675,8 @@ if __name__ == '__main__':
         except:
             pass
 
-        encoded_pred = model.encode(data)
-        print("Encoded output shape:", encoded_pred.shape)
+        # encoded_pred = model.encode(data)
+        # print("Encoded output shape:", encoded_pred.shape)
 
         pred = model.forward(data)
         print("Output shape:", pred.shape)
