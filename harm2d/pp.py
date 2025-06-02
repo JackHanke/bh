@@ -5924,7 +5924,7 @@ interpolate_var=0
 AMR = 0 # get all data in grid
 
 # make batch from batch_indexes
-def construct_batch(batch_indexes: list, dumps_path: str, device):
+def construct_batch(batch_indexes: list, dumps_path: str):
     batch_data, label_data = [], []
     for idx in batch_indexes:
         idx = idx.item()
@@ -6142,7 +6142,7 @@ def train(model_path: str, device):
 
 
 # 
-def distributed_setup(rank, world_size):
+def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '12355'
     dist.init_process_group("nccl", rank=rank, world_size=world_size)
@@ -6153,8 +6153,12 @@ def cleanup():
 
 ## main training function for multi GPU training
 def main_worker(rank, world_size, model_path: str = None):
+    global notebook, axisym,set_cart,axisym,REF_1,REF_2,REF_3,set_cart,D,print_fieldlines
+    global lowres1,lowres2,lowres3, RAD_M1, RESISTIVE, export_raytracing_GRTRANS, export_raytracing_RAZIEH,r1,r2,r3
+    global r_min, r_max, theta_min, theta_max, phi_min,phi_max, do_griddata, do_box, check_files, kerr_schild
+
     # setup environment
-    distributed_setup(rank, world_size)
+    setup(rank, world_size)
     torch.cuda.set_device(rank)
     device = torch.device(f'cuda:{rank}')
     
@@ -6267,12 +6271,11 @@ def main_worker(rank, world_size, model_path: str = None):
         prog_bar = tqdm(train_batches, disable=rank != 0)
         for batch_indexes in prog_bar:
             start = time.time()
-            
+
             # construct batch of data manually
             batch_data, label_data = construct_batch(
                 batch_indexes=batch_indexes, 
                 dumps_path=dumps_path,
-                device=device
             )
             # send data to device
             batch_data, label_data = batch_data.to(device), label_data.to(device)
@@ -6287,25 +6290,32 @@ def main_worker(rank, world_size, model_path: str = None):
             loss.backward()
             optimizer.step()
             # add loss to tracking
+            loss_val = loss.item()
             epoch_train_loss.append(loss.item())
             
             # increment batch number
             train_batch_num += 1
 
+            # memory save maybe idk
+            batch_data = None
+            label_data = None
+            torch.cuda.empty_cache()
+
             # training batch logging
             if rank == 0: 
-                batch_str = f'Train loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'
+                batch_str = f'Train loss for epoch {epoch+1}, batch {train_batch_num}: {loss_val:.4f} in {time.time()-start:.2f}s'
                 prog_bar.set_description(batch_str)
                 logger.info(batch_str)
-                print(batch_str)
+                # print(batch_str)
 
         train_loss_avg = sum(epoch_train_loss)/len(epoch_train_loss)
         train_losses.append(train_loss_avg)
+        
         if rank == 0:
             train_str = f"Completed train loss for epoch {epoch+1}: {train_loss_avg:.4f} in {time.time()-train_start_time:.2f} s"
             prog_bar.set_description(train_str)
             logger.info(train_str)
-            print(train_str)
+            # print(train_str)
 
 
         ## validation
@@ -6327,7 +6337,6 @@ def main_worker(rank, world_size, model_path: str = None):
             batch_data, label_data = construct_batch(
                 batch_indexes=batch_indexes, 
                 dumps_path=dumps_path,
-                device=device
             )
             # send data to device
             batch_data, label_data = batch_data.to(device), label_data.to(device)
@@ -6346,12 +6355,12 @@ def main_worker(rank, world_size, model_path: str = None):
                 batch_str = f'Validation loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'
                 prog_bar.set_description(batch_str)
                 logger.info(batch_str)
-                print(batch_str)
+                # print(batch_str)
 
         if rank == 0:
             val_loss_avg = sum(epoch_valid_loss)/len(epoch_valid_loss)
 
-            valid_str = f"Completed train loss for epoch {epoch+1}: {val_loss_avg:.4f} in {time.time()-valid_start_time:.2f} s"
+            valid_str = f"Completed validation loss for epoch {epoch+1}: {val_loss_avg:.4f} in {time.time()-valid_start_time:.2f} s"
             prog_bar.set_description(train_str)
             logger.info(valid_str)
             print(valid_str)
@@ -6361,6 +6370,7 @@ def main_worker(rank, world_size, model_path: str = None):
             # save best model on rank 0
             if val_loss_avg < best_val_loss:
                 best_val_loss = val_loss_avg
+                model.best_val_seen = best_val_loss # have model track best val for tracking
                 model_save_path = os.environ['HOME'] + '/bh/harm2d/' + model.module.save_path
                 model_save_info = f'Model saved at: {model_save_path}'
                 model.module.save(model_save_path)
@@ -6507,17 +6517,17 @@ if __name__ == "__main__":
     else:
         model_path = None
         
-    # model_path = None
+    model_path = None
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train(model_path=model_path, device=device)
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # train(model_path=model_path, device=device)
 
 
-    # world_size = torch.cuda.device_count()
-    # if world_size > 1:
-    #     print(f"Starting distributed training on {world_size} GPUs...")
-    #     mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
-    # else:
-    #     print(f"Starting single GPU training...")
-    #     train()
+    world_size = torch.cuda.device_count()
+    if world_size > 1:
+        print(f"Starting distributed training on {world_size} GPUs...")
+        mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
+    else:
+        print(f"Starting single GPU training...")
+        train()
     

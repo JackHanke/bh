@@ -52,9 +52,22 @@ class B3_CNN(nn.Module):
         self.upconv2 = nn.ConvTranspose3d(in_channels=32, out_channels=64, kernel_size=4, stride=2, padding=1)
         self.upact2 = nn.GELU()
         self.upconv3 = nn.ConvTranspose3d(in_channels=64, out_channels=8, kernel_size=1, stride=1, padding=0)
+
+        # other head
+        # self.head_width = 100
+        # self.other_head = nn.Sequential(
+        #     nn.Flatten(),
+        #     nn.Linear(8 * 224 * 48 * 96, self.head_width),
+        #     nn.GELU(),
+        #     nn.Linear(self.head_width, 8 * 224 * 48 * 96),
+        #     nn.Unflatten(1, (8, 224, 48, 96)),
+        # )
     
     # full forward pass for x
     def forward(self, x):
+
+        # z = self.other_head(x)
+        
         x1 = self.downconv1(x)
 
         x2 = self.downconv2(self.downact1(self.max1(x1)))
@@ -69,9 +82,9 @@ class B3_CNN(nn.Module):
 
         x7 = self.upact2(self.upconv2(x6))
 
-        x8 = self.upconv3(x7)
+        x8 = self.upconv3(x7) + x
 
-        return x8 + x
+        return x8
         
     # encode raw x
     def encode(self, x):
@@ -95,10 +108,8 @@ class B3_CNN(nn.Module):
     def save(self, save_path:str = None):
         if save_path is None:
             torch.save(self.state_dict(), self.save_path)
-            print(f'Saved model as {self.save_path}')
         else:
             torch.save(self.state_dict(), save_path)
-            print(f'Saved model as {save_path}')
 
     # get number of parameters
     def num_params(self):
