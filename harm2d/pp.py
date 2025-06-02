@@ -6123,7 +6123,7 @@ def train(model_path: str, device):
         valid_losses.append(avg_vloss_after_epoch)
 
         # validation logging
-        validation_loss_str = f"Epoch {epoch+1} valid loss value: {avg_loss_after_epoch:.4f}"
+        validation_loss_str = f"Epoch {epoch+1} valid loss value: {avg_vloss_after_epoch:.4f}"
         print(validation_loss_str)
         logger.info(validation_loss_str)
 
@@ -6507,7 +6507,7 @@ if __name__ == "__main__":
     else:
         model_path = None
         
-    model_path = None
+    # model_path = None
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     train(model_path=model_path, device=device)
