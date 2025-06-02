@@ -327,6 +327,7 @@ class CNN_3D(nn.Module):
         self.version_num = version_str
         self.save_path = f'models/cnn/saves/{self.name}_{self.version_num}.pth'
         self.latent_dim = 1024
+        self.best_val_seen = float('inf')
 
         self.encoder = nn.Sequential(
             nn.Conv3d(input_channels, 16, kernel_size=3, stride=1, padding=1),
@@ -362,30 +363,18 @@ class CNN_3D(nn.Module):
             nn.ReLU(),
             ResidualBlock3D(256),
 
-            # block 6
-            nn.MaxPool3d((2, 1, 2)), 
-            nn.Conv3d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm3d(512),
-            nn.ReLU(),
-            ResidualBlock3D(512),
-
             # final layers
-            nn.AdaptiveAvgPool3d((7, 3, 3)),  
+            nn.AdaptiveAvgPool3d((14, 3, 6)),  
             nn.Flatten(), 
-            nn.Linear(512 * 7 * 3 * 3, self.latent_dim),
+            nn.Linear(256 * 14 * 3 * 6, self.latent_dim),
             nn.ReLU()
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(self.latent_dim, 512 * 7 * 3 * 3),
-            nn.Unflatten(1, (512, 7, 3, 3)),
+            nn.Linear(self.latent_dim, 256 * 14 * 3 * 6),
+            nn.Unflatten(1, (256, 14, 3, 6)),
             nn.ReLU(),
 
-            # block 1
-            ResidualBlock3D(512),
-            nn.ConvTranspose3d(512, 256, kernel_size=(4,4,4), stride=(2,1,2), padding=1),  
-            nn.BatchNorm3d(256),
-            nn.ReLU(),
 
             # block 2
             ResidualBlock3D(256),
@@ -501,7 +490,7 @@ class CNN_3D_UnetStyle(nn.Module):
         )
 
         self.enc_block6 = nn.Sequential(
-            nn.MaxPool3d((2, 1, 2)),
+            nn.MaxPool3d((2, 2, 2)),
             nn.Conv3d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm3d(512),
             nn.ReLU(),
@@ -569,7 +558,9 @@ class CNN_3D_UnetStyle(nn.Module):
         e3 = self.enc_block3(e2)    
         e4 = self.enc_block4(e3)    
         e5 = self.enc_block5(e4)    
-        e6 = self.enc_block6(e5)   
+        e6 = self.enc_block6(e5)
+
+        print(f'shape of e6: {e6.shape}')
 
         # bottleneck
         z = self.latent(e6)
@@ -650,7 +641,11 @@ if __name__ == '__main__':
     sc_testing = True
     if sc_testing:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model = B3_CNN().to(device)
+
+        # model = B3_CNN().to(device)
+        model = CNN_3D().to(device)
+        # model = CNN_3D_UnetStyle().to(device)
+
         loss_fn = torch.nn.MSELoss()
         optimizer = torch.optim.Adam(model.parameters())
 
@@ -666,8 +661,8 @@ if __name__ == '__main__':
         except:
             pass
 
-        # encoded_pred = model.encode(data)
-        # print("Encoded output shape:", encoded_pred.shape)
+        encoded_pred = model.encode(data)
+        print("Encoded output shape:", encoded_pred.shape)
 
         pred = model.forward(data)
         print("Output shape:", pred.shape)
