@@ -1,7 +1,5 @@
 # Black Hole Emulation
 
-![](./assets/bh.jpg)
-
 ## Project Guide
 
 Our work for training on the Perlmutter supercomputer can be found within `harmd2d`:
