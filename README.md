@@ -1,16 +1,16 @@
 # Black Hole Emulation
 
+We seek to emulate the black hole simulations created by 
+
 ## Project Guide
 
-Our work for training on the Perlmutter supercomputer can be found within `harmd2d`:
+`'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
 
-`harmd2d/`
+The data is dimension `(8,224,48,96)`, where the the first `8` channels are density, internal energy, the 3 components of velocity, and the 3 components of flux. This works out to `8.26` million FLs, which is naively `66MB` a frame uncompressed.
 
-├── `models` includes model definitions for feed forward neural networks (`ffnn`), convolutional nerual networks (`cnn`), and UNet style encoders (`unet`)
+Selecting the high flux region of the 
 
-├── `pp.py` adds thre training scripts for these models, including external logging and multi-GPU support. Our current implementation needs to be in this file because the variables are stored as globals within the context, and it is a work-in-progress to isolate these processes.
-
-├── `async_read.py` is a work-in-progress implementation for asynchronous data reading to improve 
+## Project Layout and Developer Notes
 
 For running a trial training run, run the following
 
@@ -27,13 +27,25 @@ For launching a true training sessions with no hangup training, run
 ./trainsh
 ```
 
+The project layout is as follows.
 
-## Developer Notes
+```
+bh/
+├── assets/
+├── harm2d/
+├── harmpi/
+├── movies/
+├── utils/
+├── .gitignore
+├── LICENSE
+├── README.md
+└── requirements.txt
+```
 
 - [Perlmutter Docs](https://docs.nersc.gov/getting-started/)
     - To login: `ssh user@saul.nersc.gov`, then password + 6 digit Google Authenticator code
 - Real 3 dimensional data can be found at: `'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
-- The [BitBucket link](https://bitbucket.org/atchekho/harm2d/src/master/)=
+- The [BitBucket link](https://bitbucket.org/atchekho/harm2d/src/master/)
 
 ## Setup
 

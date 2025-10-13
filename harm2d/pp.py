@@ -6509,25 +6509,25 @@ if __name__ == "__main__":
     # set_mpi(0)
     # import pp_c
 
-    path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.0.pth'
-    if os.path.exists(path_to_check):
-        model_path = path_to_check
+    # path_to_check = os.environ['HOME']+'/bh/harm2d/models/cnn/saves/b3_v0.1.0.pth'
+    # if os.path.exists(path_to_check):
+    #     model_path = path_to_check
         
-    # otherwise no model, random init
-    else:
-        model_path = None
+    # # otherwise no model, random init
+    # else:
+    #     model_path = None
         
-    model_path = None
+    # model_path = None
     
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # train(model_path=model_path, device=device)
 
 
-    world_size = torch.cuda.device_count()
-    if world_size > 1:
-        print(f"Starting distributed training on {world_size} GPUs...")
-        mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
-    else:
-        print(f"Starting single GPU training...")
-        train()
+    # world_size = torch.cuda.device_count()
+    # if world_size > 1:
+    #     print(f"Starting distributed training on {world_size} GPUs...")
+    #     mp.spawn(main_worker, args=(world_size, model_path,), nprocs=world_size, join=True)
+    # else:
+    #     print(f"Starting single GPU training...")
+    #     train()
     
