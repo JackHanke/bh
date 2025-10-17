@@ -2,6 +2,13 @@
 
 We seek to emulate the black hole simulations created by 
 
+## Project TODOs
+
+- Rewrite `plc_cart` to render frames directly from disk
+- Async/ multithreaded/ multiprocess file read for constant batch size read
+- Standardize data
+- Write custom batcher
+
 ## Project Guide
 
 `'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
