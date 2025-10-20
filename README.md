@@ -1,7 +1,5 @@
 # Black Hole Emulation
 
-We seek to emulate the black hole simulations created by 
-
 ## Project TODOs
 
 - Rewrite `plc_cart` to render frames directly from disk
@@ -11,11 +9,10 @@ We seek to emulate the black hole simulations created by
 
 ## Project Guide
 
-`'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
+The original data on perlmutter is at: `'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
 
-The data is dimension `(8,224,48,96)`, where the the first `8` channels are density, internal energy, the 3 components of velocity, and the 3 components of flux. This works out to `8.26` million FLs, which is naively `66MB` a frame uncompressed.
+The data is dimension `(8,224,48,96)`, where the the first `8` channels are density, internal energy, the 3 components of velocity, and the 3 components of flux. This works out to `8.26` million floating point numbers, which is naively `66MB` a frame uncompressed.
 
-Selecting the high flux region of the 
 
 ## Project Layout and Developer Notes
 

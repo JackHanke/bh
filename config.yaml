@@ -1,0 +1,10 @@
+
+# start dump index to save to disk/train on
+start_dump: 3000
+# end dump index to save to disk/train on
+end_dump: 7000
+
+# number of times one loops over the data
+num_epochs: 20
+# number of data points per gradient update
+batch_size: 32
