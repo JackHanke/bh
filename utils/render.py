@@ -1,3 +1,12 @@
+import os
+import h5py
+import yaml
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+with open('config.yaml', 'r') as file: config = yaml.safe_load(file)
+
 # 
 def _plc_cart(
         var, 
@@ -7,14 +16,19 @@ def _plc_cart(
         offset, 
         name, 
         label,
-        notebook: bool = False,
+        notebook: bool = True,
         print_fieldlines: bool = False,
         do_box: bool = False,
         do_save: bool = False,
     ):
 
-    global r, h, ph
-    global aphi
+    # bring in relevant globals
+    r = np.load('utils/'+config['r_path'])
+    h = np.load('utils/'+config['h_path'])
+    ph = np.load('utils/'+config['ph_path'])
+    _, bs1new, bs2new, bs3new = var.shape
+    nb = 1
+                 
     fig = plt.figure(figsize=(64, 32))
 
     X = r*np.sin(h)
@@ -33,15 +47,14 @@ def _plc_cart(
 
     levels_ch = np.linspace(min, max, 300)
     #levels_ch = np.arange(min, max, (max-min)/300.0)
-
     plt.subplot(1, 2, 1)
-    _plc_new(np.log10((var))[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax, ymax=rmax)
-    res = _plc_new(np.log10((var))[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=-1.0 * X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax, ymax=rmax)
-    if (print_fieldlines == 1):
-        _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax, ymax=rmax)
-        _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=-1.0 * X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax, ymax=rmax)
-    plt.xlabel(r"$x / R_g$", fontsize=90)
-    plt.ylabel(r"$z / R_g$", fontsize=90)
+    _plc_new(var[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax, ymax=rmax)
+    res = _plc_new(var[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=-1.0 * X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax, ymax=rmax)
+    # if (print_fieldlines == 1):
+    #     _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax, ymax=rmax)
+    #     _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=-1.0 * X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax, ymax=rmax)
+    # plt.xlabel(r"$x / R_g$", fontsize=90)
+    # plt.ylabel(r"$z / R_g$", fontsize=90)
     plt.title(label, fontsize=90)
     ax = plt.gca()
     ax.yaxis.set_ticks_position('left')
@@ -52,16 +65,16 @@ def _plc_cart(
     cax = divider.append_axes("right", size="5%", pad=0.05)
     cb=plt.colorbar(res, cax=cax)
     #cb.ax.tick_params(labelsize=50)
-
+    
     factor = 20
     plt.subplot(1, 2, 2)
-    _plc_new(np.log10((var))[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax * factor, ymax=rmax * factor)
-    res = _plc_new(np.log10((var))[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=-1.0 * X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax * factor, ymax=rmax * factor)
-    if (print_fieldlines == 1):
-        _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax * factor, ymax=rmax * factor)
-        _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=-1.0 * X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax * factor, ymax=rmax * factor)
+    _plc_new(var[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax * factor, ymax=rmax * factor)
+    res = _plc_new(var[:, 0:ilim], levels=levels_ch, nc=100, cb=0, isfilled=1, xcoord=-1.0 * X[:, 0:ilim],ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax * factor, ymax=rmax * factor)
+    # if (print_fieldlines == 1):
+    #     _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=offset, xmax=rmax * factor, ymax=rmax * factor)
+    #     _plc_new(aphi[:, 0:ilim], levels=np.arange(aphi[:, 0:ilim].min(), aphi[:, 0:ilim].max(), (aphi[:, 0:ilim].max()-aphi[:, 0:ilim].min())/20.0), cb=0,colors="black", isfilled=0, xcoord=-1.0 * X[:, 0:ilim], ycoord=Y[:, 0:ilim], xy=1, z=180 + offset, xmax=rmax * factor, ymax=rmax * factor)
 
-    plt.xlabel(r"$x / R_g$", fontsize=90)
+    # plt.xlabel(r"$x / R_g$", fontsize=90)
     #plt.ylabel(r"$z / R_g$", fontsize=60)
     plt.title(label, fontsize=90)
     ax = plt.gca()
@@ -80,12 +93,21 @@ def _plc_cart(
         plt.close('all')
 
 def _plc_new(myvar, xcoord=None, ycoord=None, ax=None, **kwargs):
-    global r, h, ph
+    # global r, h, ph
 
     ## NOTE hardcoded to avoid globals
+    r = np.load('utils/'+config['r_path'])
+    h = np.load('utils/'+config['h_path'])
+    ph = np.load('utils/'+config['ph_path'])
+    block = np.load('utils/'+config['block_path'])
+    n_ord = np.load('utils/'+config['n_ord_path'])
+    nb, nb2d, nb1, nb2, nb3 = 1,1,1,1,1
+    _, bs1new, bs2new, bs3new = myvar.shape
     AMR_COORD3 = 5
     AMR_LEVEL3 = 112
     REF_3 = 1
+    cb = True
+    xy = True
         
     l = [None] * nb2d
 
@@ -125,12 +147,13 @@ def _plc_new(myvar, xcoord=None, ycoord=None, ax=None, **kwargs):
     return res
 
 def plot_frame(
+        data_path: str,
         variable_name: int, 
         dump_number: int,
-        save_path: str
+        save_path: str = None
     ):
 
-    variable_axis_dicitonary = {
+    variable_axis_dictionary = {
         'log(rho)': 0,
         'ug': 1,
         'uu_x': 2,
@@ -141,8 +164,19 @@ def plot_frame(
         'B_z': 7,
     }
 
+    var_idx = variable_axis_dictionary[variable_name]
+
+    with h5py.File(data_path, "r") as f:
+        # get the axis the specific dump index is stored at on disk
+        idx = dump_number - f['dump_index'][0]
+
+        # get data
+        var = f['data'][idx][0][var_idx, :, :]
+
+    var = np.expand_dims(var, axis=0)
+    
     _plc_cart(
-        var = rho, 
+        var = var,
         min = -2, 
         max = 2, 
         rmax = 100, 
@@ -150,6 +184,3 @@ def plot_frame(
         name = f"{variable_name}_{dump_number}", 
         label = f"Frame {dump_number}"
     )
-
-if __name__ == '__main__':
-    plot_frame(variable='log(rho)', dump_number=4000)

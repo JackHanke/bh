@@ -8,3 +8,10 @@ end_dump: 7000
 num_epochs: 20
 # number of data points per gradient update
 batch_size: 32
+
+# global variables required for plotting are also saved to disk
+r_path: 'globals/r.npy'
+h_path: 'globals/h.npy'
+ph_path: 'globals/ph.npy'
+block_path: 'globals/block.npy'
+n_ord_path: 'globals/n_ord.npy'
