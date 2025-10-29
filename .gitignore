@@ -250,3 +250,4 @@ movies/sc_pred_frames/*.png
 utils/globals/*
 !/utils/globals/.gitkeep
 
+HAMR_Visualization

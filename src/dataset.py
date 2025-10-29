@@ -3,7 +3,6 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-# --- 2. Create the custom Dataset class ---
 class HDF5Dataset(Dataset):
     """
     A custom PyTorch Dataset for reading from an HDF5 file.
@@ -11,10 +10,12 @@ class HDF5Dataset(Dataset):
     The key for parallel loading is that each worker process
     will instantiate its own copy of this class.
     """
-    def __init__(self, h5_path, features_key='features', labels_key='labels'):
+    def __init__(self, h5_path, percentage: float, dataset_type: str, features_key='features', labels_key='labels'):
         self.h5_path = h5_path
         self.features_key = features_key
         self.labels_key = labels_key
+        self.percentage = percentage
+        self.dataset_type = dataset_type
         
         # We will open the file handle *within* __getitem__
         # or, more efficiently, store it here, but it must be
@@ -24,7 +25,8 @@ class HDF5Dataset(Dataset):
     def __len__(self):
         # We can open the file once just to get the length
         with h5py.File(self.h5_path, 'r') as f:
-            return len(f[self.labels_key])
+            self.size = int(len(f[self.labels_key]) * self.percentage)
+            return self.size
             
     def __getitem__(self, index):
         # This check is crucial.
@@ -35,8 +37,8 @@ class HDF5Dataset(Dataset):
             self.file = h5py.File(self.h5_path, 'r')
             
         # Get the random slice
-        x = self.file[self.features_key][index]
-        y = self.file[self.labels_key][index]
+        x = self.file[self.features_key][index + self.size]
+        y = self.file[self.labels_key][index + self.size]
         
         # Apply any transforms here (e.g., convert to tensor)
         x_tensor = torch.from_numpy(x.astype(np.float32))
