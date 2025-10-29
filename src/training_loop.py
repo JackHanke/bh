@@ -22,6 +22,7 @@ from torch.utils.data import Dataset, DataLoader, DistributedSampler
 # 
 from vae import VAE
 from batching import custom_batcher, construct_batch
+from dataset import HDF5Dataset
 
 # 
 def setup(rank, world_size):
@@ -156,8 +157,7 @@ def main_worker(
 
         # train loss tracking
         epoch_train_loss = []
-        # track the training batch number
-        train_batch_num = 1
+        
 
         # batch training
         # train_batches = torch.utils.data.DataLoader(train_idxs, batch_size=batch_size, sampler=train_sampler)
@@ -165,7 +165,7 @@ def main_worker(
         # for batch_indexes in prog_bar:
 
         prog_bar = tqdm(enumerate(train_loader), total=train_dataset.size, disable=rank != 0)
-        for i, (batch_data, label_data) in prog_bar:
+        for train_batch_num, (batch_data, label_data) in prog_bar:
             start = time.time()
 
             # send data to device
@@ -183,9 +183,6 @@ def main_worker(
             # add loss to tracking
             loss_val = loss.item()
             epoch_train_loss.append(loss.item())
-            
-            # increment batch number
-            train_batch_num += 1
 
             # memory save maybe idk
             # batch_data = None
@@ -213,15 +210,14 @@ def main_worker(
         model.eval()
         # loss tracking
         epoch_valid_loss = []
-        # batch number counter
-        valid_batch_num = 1
+        
 
         ## batch validation
         # valid_batches = torch.utils.data.DataLoader(valid_idxs, batch_size=batch_size, sampler=valid_sampler)
         # prog_bar = tqdm(valid_batches, disable=rank != 0)
         # for batch_indexes in prog_bar:
         prog_bar = tqdm(enumerate(valid_loader), total=valid_dataset.size, disable=rank != 0)
-        for i, (batch_data, label_data) in prog_bar:
+        for valid_batch_num, (batch_data, label_data) in prog_bar:
             # send data to device
             batch_data, label_data = batch_data.to(device), label_data.to(device)
             
@@ -232,8 +228,6 @@ def main_worker(
             loss = loss_fn(pred, label_data)
             # log validation loss
             epoch_valid_loss.append(loss.item())
-            # increment batch number
-            valid_batch_num += 1
             # validation batch logging
             if rank == 0: 
                 batch_str = f'Validation loss for epoch {epoch+1}, batch {valid_batch_num}: {loss.item():.4f} in {time.time()-start:.2f}s'

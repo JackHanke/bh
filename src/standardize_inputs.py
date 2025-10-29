@@ -6,6 +6,7 @@ from tqdm import tqdm
 import torch
 
 from batching import custom_batcher, construct_batch
+from dataset import HDF5Dataset
 
 if __name__ == '__main__':
     # get configs
@@ -16,28 +17,23 @@ if __name__ == '__main__':
     start_dump = config['start_dump']
     end_dump = config['end_dump']
 
-    # get indexes for training data
-    train_idxs, valid_idxs = custom_batcher(
+    data_path = os.getenv('SCRATCH')+"/data.hdf5"
+    train_dataset = HDF5Dataset(data_path, dataset_type='train', percentage=0.9)
+
+    num_workers = os.cpu_count()  # Use all available CPU cores
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
         batch_size=batch_size,
-        num_dumps=num_dumps,
-        split = 0.8,
-        seed=1,
-        start=start_dump,
-        end=end_dump,
+        shuffle=True,  # Automatically handles random sampling
+        num_workers=num_workers,
+        persistent_workers=True,
+        pin_memory=True  # Speeds up CPU-to-GPU memory copies
     )
 
-    data_path = os.getenv('SCRATCH')+"/data.hdf5"
-
-    train_batches = torch.utils.data.DataLoader(train_idxs, batch_size=batch_size)
-    prog_bar = tqdm(train_batches)
-    train_batch_num = 1
-    for batch_indexes in prog_bar:
+    prog_bar = tqdm(enumerate(train_loader), total=train_dataset.size)
+    for train_batch_num, (batch_data, label_data) in prog_bar:
         start = time.time()
-
-        batch_data, label_data = construct_batch(
-            batch_indexes=batch_indexes, 
-            data_path=data_path,
-        )
 
         # sum over channel
         sum_array = np.sum(batch_data, axis=(0,2,3,4))

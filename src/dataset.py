@@ -37,8 +37,9 @@ class HDF5Dataset(Dataset):
             self.file = h5py.File(self.h5_path, 'r')
             
         # Get the random slice
-        x = self.file[self.features_key][index + self.size]
-        y = self.file[self.labels_key][index + self.size]
+        offset = index + (self.size if self.dataset_type == 'valid' else 0)
+        x = self.file[self.features_key][index + offset]
+        y = self.file[self.labels_key][index + offset]
         
         # Apply any transforms here (e.g., convert to tensor)
         x_tensor = torch.from_numpy(x.astype(np.float32))
