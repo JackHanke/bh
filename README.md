@@ -51,6 +51,8 @@ bh/
 - Real 3 dimensional data can be found at: `'/pscratch/sd/l/lalakos/ml_data_rc300/reduced'`
 - The [BitBucket link](https://bitbucket.org/atchekho/harm2d/src/master/)
 
+- For [Python help on Perlmutter](https://docs.nersc.gov/development/languages/python/)
+
 ## Setup
 
 To setup environment on Perlmutter, run the following:

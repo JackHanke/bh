@@ -10,7 +10,7 @@ class HDF5Dataset(Dataset):
     The key for parallel loading is that each worker process
     will instantiate its own copy of this class.
     """
-    def __init__(self, h5_path, percentage: float, dataset_type: str, features_key='features', labels_key='labels'):
+    def __init__(self, h5_path, percentage: float, dataset_type: str, features_key='data', labels_key='labels'):
         self.h5_path = h5_path
         self.features_key = features_key
         self.labels_key = labels_key
@@ -25,7 +25,7 @@ class HDF5Dataset(Dataset):
     def __len__(self):
         # We can open the file once just to get the length
         with h5py.File(self.h5_path, 'r') as f:
-            self.size = int(len(f[self.labels_key]) * self.percentage)
+            self.size = int(len(f[self.features_key]) * self.percentage)
             return self.size
             
     def __getitem__(self, index):
@@ -37,12 +37,13 @@ class HDF5Dataset(Dataset):
             self.file = h5py.File(self.h5_path, 'r')
             
         # Get the random slice
-        offset = index + (self.size if self.dataset_type == 'valid' else 0)
+        offset = (self.size if self.dataset_type == 'valid' else 0)
         x = self.file[self.features_key][index + offset]
-        y = self.file[self.labels_key][index + offset]
+        # y = self.file[self.labels_key][index + offset]
         
         # Apply any transforms here (e.g., convert to tensor)
         x_tensor = torch.from_numpy(x.astype(np.float32))
-        y_tensor = torch.tensor(y, dtype=torch.long)
+        # y_tensor = torch.tensor(y, dtype=torch.long)
         
-        return x_tensor, y_tensor
+        # return x_tensor, y_tensor
+        return x_tensor, x_tensor
