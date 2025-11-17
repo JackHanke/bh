@@ -16,6 +16,7 @@ class HDF5Dataset(Dataset):
         self.labels_key = labels_key
         self.percentage = percentage
         self.dataset_type = dataset_type
+        self.size = 3600 # TODO this needs to be fixed
         
         # We will open the file handle *within* __getitem__
         # or, more efficiently, store it here, but it must be
@@ -25,8 +26,9 @@ class HDF5Dataset(Dataset):
     def __len__(self):
         # We can open the file once just to get the length
         with h5py.File(self.h5_path, 'r') as f:
-            self.size = int(len(f[self.features_key]) * self.percentage)
-            return self.size
+            train_size = int(len(f[self.features_key]) * self.percentage)
+            assert self.size == train_size, "I hard coded this, "
+            return train_size
             
     def __getitem__(self, index):
         # This check is crucial.
