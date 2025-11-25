@@ -12,12 +12,12 @@ import numpy as np
 from tqdm import tqdm
 import torch
 from torchinfo import summary
+from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
 # distributed training
 import torch.distributed as dist  # NEW: Import for distributed training
 import torch.multiprocessing as mp  # NEW: Import for multiprocessing
 from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
-from torch.utils.data import Dataset, DataLoader, DistributedSampler
 
 # 
 from vae import VAE
