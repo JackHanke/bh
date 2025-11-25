@@ -2,10 +2,14 @@ import os
 import glob
 import numpy as np
 from tqdm import tqdm
+
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+
+
 
 DATA_DIR = "/storage/scratch1/4/skumar680/5000run/data_output/" 
 EPOCHS = 25
@@ -36,29 +40,6 @@ B_CHANNELS = [6, 7, 8, 9]
 LOG_CHANNELS = [RHO_CHANNEL, UGAS_CHANNEL]
 STD_CHANNELS = UU_CHANNELS + B_CHANNELS
 
-
-class HamrDataset(Dataset):
-    """
-    Loads the prims
-    """
-    def __init__(self, data_dir):
-        self.prims_dir = os.path.join(data_dir, "primitives")
-        
-        # Find all primitive files
-        self.prims_files = sorted(glob.glob(os.path.join(self.prims_dir, "prims_*.npy")))
-        if not self.prims_files:
-            raise FileNotFoundError(f"prims_*.npy files not found ")
-        
-        print(f"found {len(self.prims_files)} primitive files.")
-
-    def __len__(self):
-        return len(self.prims_files)
-
-    def __getitem__(self, idx):
-        prims_path = self.prims_files[idx]
-        prims_data = np.load(prims_path).squeeze(1).astype(np.float32)
-        prims_data = np.nan_to_num(prims_data, nan=0.0, posinf=0.0, neginf=0.0)
-        return prims_data
 
 def get_normalization_stats(loader, device):
     """Calculates mean/std/min"""
@@ -148,13 +129,17 @@ class SimpleVAE(nn.Module):
             nn.Conv3d(self.in_channels, 32, kernel_size=3, stride=2, padding=1), # D/2
             nn.LeakyReLU(0.2),
             nn.Conv3d(32, 64, kernel_size=3, stride=2, padding=1), # D/4
-            nn.BatchNorm3d(64), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(64), 
+            nn.LeakyReLU(0.2),
             nn.Conv3d(64, 128, kernel_size=3, stride=2, padding=1), # D/8
-            nn.BatchNorm3d(128), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(128), 
+            nn.LeakyReLU(0.2),
             nn.Conv3d(128, 256, kernel_size=3, stride=2, padding=1), # D/16
-            nn.BatchNorm3d(256), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(256), 
+            nn.LeakyReLU(0.2),
             nn.Conv3d(256, 512, kernel_size=3, stride=(3, 2, 2), padding=1),
-            nn.BatchNorm3d(512), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(512), 
+            nn.LeakyReLU(0.2),
         )
         
         self._calculate_conv_output_size(input_shape)
@@ -165,13 +150,17 @@ class SimpleVAE(nn.Module):
         self.decoder_input = nn.Linear(self.latent_dim, self.flattened_size)
         self.decoder = nn.Sequential(
             nn.ConvTranspose3d(512, 256, kernel_size=3, stride=(3, 2, 2), padding=1, output_padding=(0,1,1)),
-            nn.BatchNorm3d(256), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(256),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(128), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(128),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(64), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(64),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(32), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(32),
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(32, self.in_channels, kernel_size=3, stride=2, padding=1, output_padding=1),
         )
 

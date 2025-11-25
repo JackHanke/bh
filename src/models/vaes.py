@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # 
-class SimpleVAE(nn.Module):
+class VAE(nn.Module):
     def __init__(self, input_shape, latent_dim):
         super(SimpleVAE, self).__init__()
         
@@ -20,13 +20,17 @@ class SimpleVAE(nn.Module):
             nn.Conv3d(self.in_channels, 32, kernel_size=3, stride=2, padding=1), # D/2
             nn.LeakyReLU(0.2),
             nn.Conv3d(32, 64, kernel_size=3, stride=2, padding=1), # D/4
-            nn.BatchNorm3d(64), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(64), 
+            nn.LeakyReLU(0.2),
             nn.Conv3d(64, 128, kernel_size=3, stride=2, padding=1), # D/8
-            nn.BatchNorm3d(128), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(128), 
+            nn.LeakyReLU(0.2),
             nn.Conv3d(128, 256, kernel_size=3, stride=2, padding=1), # D/16
-            nn.BatchNorm3d(256), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(256), 
+            nn.LeakyReLU(0.2),
             nn.Conv3d(256, 512, kernel_size=3, stride=(3, 2, 2), padding=1),
-            nn.BatchNorm3d(512), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(512), 
+            nn.LeakyReLU(0.2),
         )
         
         self._calculate_conv_output_size(input_shape)
@@ -37,13 +41,17 @@ class SimpleVAE(nn.Module):
         self.decoder_input = nn.Linear(self.latent_dim, self.flattened_size)
         self.decoder = nn.Sequential(
             nn.ConvTranspose3d(512, 256, kernel_size=3, stride=(3, 2, 2), padding=1, output_padding=(0,1,1)),
-            nn.BatchNorm3d(256), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(256), 
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(128), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(128), 
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(64), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(64), 
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.BatchNorm3d(32), nn.LeakyReLU(0.2),
+            nn.BatchNorm3d(32), 
+            nn.LeakyReLU(0.2),
             nn.ConvTranspose3d(32, self.in_channels, kernel_size=3, stride=2, padding=1, output_padding=1),
         )
 

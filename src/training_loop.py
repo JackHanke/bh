@@ -20,7 +20,7 @@ import torch.multiprocessing as mp  # NEW: Import for multiprocessing
 from torch.nn.parallel import DistributedDataParallel as DDP  # NEW: Import DDP wrapper
 
 # 
-from vae import VAE
+from models.vae import VAE
 from batching import custom_batcher, construct_batch
 from dataset import HDF5Dataset
 

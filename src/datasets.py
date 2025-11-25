@@ -3,6 +3,29 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
+class HamrDataset(Dataset):
+    """
+    Loads the prims
+    """
+    def __init__(self, data_dir):
+        self.prims_dir = os.path.join(data_dir, "primitives")
+        
+        # Find all primitive files
+        self.prims_files = sorted(glob.glob(os.path.join(self.prims_dir, "prims_*.npy")))
+        if not self.prims_files:
+            raise FileNotFoundError(f"prims_*.npy files not found ")
+        
+        print(f"found {len(self.prims_files)} primitive files.")
+
+    def __len__(self):
+        return len(self.prims_files)
+
+    def __getitem__(self, idx):
+        prims_path = self.prims_files[idx]
+        prims_data = np.load(prims_path).squeeze(1).astype(np.float32)
+        prims_data = np.nan_to_num(prims_data, nan=0.0, posinf=0.0, neginf=0.0)
+        return prims_data
+
 class HDF5Dataset(Dataset):
     """
     A custom PyTorch Dataset for reading from an HDF5 file.
