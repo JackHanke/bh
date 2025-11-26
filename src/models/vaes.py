@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # 
 class VAE(nn.Module):
     def __init__(self, input_shape, latent_dim):
-        super(SimpleVAE, self).__init__()
+        super(VAE, self).__init__()
         
         self.in_channels = input_shape[0]
         self.latent_dim = latent_dim
@@ -67,6 +67,7 @@ class VAE(nn.Module):
             logger.info(f"  Flattened features: {self.flattened_size}")
 
     def reparameterize(self, mu, logvar):
+        CLIP_VAL = 8.0 # limit for exp() and logvar to prevent inf
         logvar = torch.clamp(logvar, max=CLIP_VAL)
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)

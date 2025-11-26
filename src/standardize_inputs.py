@@ -7,7 +7,23 @@ from tqdm import tqdm
 import torch
 
 from batching import custom_batcher, construct_batch
-from dataset import HDF5Dataset
+from datasets import HDF5Dataset
+
+# standardize data for given avg_array and variance_array
+def standardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor):
+    transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4)
+    transformed_variance_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([variance_array for _ in range(data.shape[0])],0),2),3),4)
+    
+    standardized_data = (data - transformed_avg_array)/torch.sqrt(transformed_variance_array)
+    return standardized_data
+
+# de-standardize data 
+def destandardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor):
+    transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4)
+    transformed_variance_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([variance_array for _ in range(data.shape[0])],0),2),3),4)
+
+    destandardized_data = (data * torch.sqrt(transformed_variance_array)) + transformed_avg_array
+    return destandardized_data
 
 if __name__ == '__main__':
     # get configs
@@ -18,9 +34,9 @@ if __name__ == '__main__':
     end_dump = config['end_dump']
 
     data_path = os.getenv('SCRATCH')+"/data.hdf5"
+    train_dataset = HDF5Dataset(data_path, dataset_type='train', percentage=0.9)
     avg_save_path = f'channel_wide_average.pt'
     variance_save_path = f'channel_wide_variance.pt'
-    train_dataset = HDF5Dataset(data_path, dataset_type='train', percentage=0.9)
 
     # num_workers is number of CPUs used
     num_workers = 16
