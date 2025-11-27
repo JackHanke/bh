@@ -1,13 +1,15 @@
+### configs for 
 
+
+## data configs
 # start dump index to save to disk/train on
 start_dump: 3000
 # end dump index to save to disk/train on
 end_dump: 7000
-
-# number of times one loops over the data
-num_epochs: 20
-# number of data points per gradient update
-batch_size: 32
+# 
+avg_save_path: 'channel_wide_average.pt'
+# 
+variance_save_path: 'channel_wide_variance.pt'
 
 # global variables required for plotting are also saved to disk
 r_path: 'globals/r.npy'
@@ -15,3 +17,25 @@ h_path: 'globals/h.npy'
 ph_path: 'globals/ph.npy'
 block_path: 'globals/block.npy'
 n_ord_path: 'globals/n_ord.npy'
+
+## training configs
+# number of times one loops over the data
+num_epochs: 25
+# number of data points per gradient update
+batch_size: 32
+# 
+learning_rate: 1.0e-4
+# checkpoint model every 
+save_every_n_epochs: 3
+
+
+## model configs
+#
+latent_dim: 256
+#
+clip_value: 8.0
+# how much reconstruction should be weighted in loss
+reconstruction_weight: 1.0
+# how much latent structure should be weighted in loss
+structure_weight: 1.0e-5
+

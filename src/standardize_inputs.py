@@ -6,9 +6,6 @@ import time
 from tqdm import tqdm
 import torch
 
-from batching import custom_batcher, construct_batch
-from datasets import HDF5Dataset
-
 # standardize data for given avg_array and variance_array
 def standardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor):
     transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4)
@@ -26,6 +23,8 @@ def destandardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: t
     return destandardized_data
 
 if __name__ == '__main__':
+    from datasets import HDF5Dataset
+    
     # get configs
     with open('../config.yaml', 'r') as file: config = yaml.safe_load(file)
     batch_size = config['batch_size']

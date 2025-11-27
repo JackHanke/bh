@@ -251,3 +251,5 @@ utils/globals/*
 !/utils/globals/.gitkeep
 
 HAMR_Visualization
+
+src/models/checkpoints

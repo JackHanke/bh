@@ -3,10 +3,27 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import yaml
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+with open('../config.yaml', 'r') as file: config = yaml.safe_load(file)
+
+def VAE_loss(label: torch.Tensor, prediction: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor):
+    # loss configs
+    reconstruction_weight = config['reconstruction_weight']
+    structure_weight = config['structure_weight']
+    clip_value = config['clip_value']
+    # reconstruction
+    reconstruction_loss = F.mse_loss(prediction, label, reduction='mean')
+    # kl
+    logvar_c = torch.clamp(logvar, max=clip_value)
+    kl_loss = -0.5 * torch.mean(1 + logvar_c - mu.pow(2) - logvar_c.exp())
+    # 
+    total_loss = (reconstruction_weight * reconstruction_loss) + (structure_weight * kl_loss)
+    return total_loss, reconstruction_loss, kl_loss
 
 # 
 class VAE(nn.Module):
