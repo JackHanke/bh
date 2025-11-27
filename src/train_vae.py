@@ -127,6 +127,8 @@ def train_vae():
         for train_batch_num, (batch_data, _) in prog_bar:
             #             
             standardized_batch = standardize(batch_data, avg_array, variance_array).to(DEVICE)
+
+            
             # 
             prediction, mu, logvar = model(standardized_batch)
             #

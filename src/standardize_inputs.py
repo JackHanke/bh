@@ -7,17 +7,17 @@ from tqdm import tqdm
 import torch
 
 # standardize data for given avg_array and variance_array
-def standardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor):
-    transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4)
-    transformed_variance_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([variance_array for _ in range(data.shape[0])],0),2),3),4)
+def standardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor, device='cpu'):
+    transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4).to(device)
+    transformed_variance_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([variance_array for _ in range(data.shape[0])],0),2),3),4).to(device)
     
     standardized_data = (data - transformed_avg_array)/torch.sqrt(transformed_variance_array)
     return standardized_data
 
 # de-standardize data 
-def destandardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor):
-    transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4)
-    transformed_variance_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([variance_array for _ in range(data.shape[0])],0),2),3),4)
+def destandardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: torch.Tensor, device = 'cpu'):
+    transformed_avg_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([avg_array for _ in range(data.shape[0])],0),2),3),4).to(device)
+    transformed_variance_array = torch.unsqueeze(torch.unsqueeze(torch.unsqueeze(torch.stack([variance_array for _ in range(data.shape[0])],0),2),3),4).to(device)
 
     destandardized_data = (data * torch.sqrt(transformed_variance_array)) + transformed_avg_array
     return destandardized_data

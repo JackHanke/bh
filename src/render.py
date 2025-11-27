@@ -51,8 +51,7 @@ def plot_frame(
     )
 
 # view frame and forward pass of autoencoder
-def view_reconstruction(data_path:str, model, variable_name: str, dump_number: int):
-    
+def view_reconstruction(data_path:str, model, variable_name: str, dump_number: int, device):
     
     variable_axis_dictionary = {
         'log(rho)': 0,
@@ -71,35 +70,56 @@ def view_reconstruction(data_path:str, model, variable_name: str, dump_number: i
         idx = dump_number - f['dump_index'][0]
         # get data
         var = f['data'][idx][0][var_idx, :, :]
-    # var = np.expand_dims(var, axis=0)
+    # add batch index
+    var = np.expand_dims(var, axis=0)
 
     # res, ax = _preprocess_var_for_plotting(var)
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
-    ax1.imshow(var[:,:,0])
-
     # 
     avg_save_path = 'src/'+config['avg_save_path']
     variance_save_path = 'src/'+config['variance_save_path']
-    avg_array = torch.load(avg_save_path)
-    variance_array = torch.load(variance_save_path)
+    avg_array = torch.load(avg_save_path).to(device)
+    variance_array = torch.load(variance_save_path).to(device)
     
-
-    var_tensor = torch.from_numpy(var.astype(np.float32))
+    var_tensor = torch.from_numpy(var.astype(np.float32)).to(device)
 
     # preprocess
-    standardized_var = standardize(var_tensor, avg_array, variance_array).to(DEVICE)
-
+    standardized_var = standardize(var_tensor, avg_array, variance_array, device=device)
     # inference
-    prediction = model(standardized_var)
-    
+    prediction, _, _ = model(standardized_var)
     # postprocess
-    postprocessed_prediction = destandardize(prediction, avg_array, variance_array)
+    postprocessed_prediction = destandardize(prediction, avg_array, variance_array, device=device)
+    
+    true_data_frame = var[0,:,:,0]
 
-    ax2.imshow(postprocessed_prediction)
+    # plotting
+    xmax, ymax = 50, 50
+    # true data
+    x,y,z = _preprocess_var_for_plotting(var, ax=ax1, side='left')
+    res = ax1.contourf(x, y, z, 100, extend='both', cmap='jet')
+    x,y,z = _preprocess_var_for_plotting(var, ax=ax1, side='right')
+    res = ax1.contourf(x, y, z, 100, extend='both', cmap='jet')
+    ax1.set_xlim(-xmax, xmax)
+    ax1.set_ylim(-ymax, ymax)
+    ax1.set_title(f'Dump {dump_number}')
+    ax1.set_aspect('equal', adjustable='box')
+    # TODO color bars
 
+    # reconstruction 
+    x,y,z = _preprocess_var_for_plotting(prediction.cpu().detach().numpy()[:,var_idx], ax=ax2, side='left')
+    res = ax2.contourf(x, y, z, 100, extend='both', cmap='jet')
+    x,y,z = _preprocess_var_for_plotting(prediction.cpu().detach().numpy()[:,var_idx], ax=ax2, side='right')
+    res = ax2.contourf(x, y, z, 100, extend='both', cmap='jet')
+    ax2.set_xlim(-xmax, xmax)
+    ax2.set_ylim(-ymax, ymax)
+    ax2.set_title(f'Recon')
+    ax2.set_aspect('equal', adjustable='box')
+    
     plt.show()
+
+    # TODO save fig
     
 
     
@@ -110,7 +130,7 @@ def view_latent_predictions():
     pass
 
 # transform raw data to viewable data
-def _preprocess_var_for_plotting(var, xcoord=None, ycoord=None, ax=None):
+def _preprocess_var_for_plotting(var, ax, side='right'):
     r = np.load('utils/'+config['r_path'])
     h = np.load('utils/'+config['h_path'])
     ph = np.load('utils/'+config['ph_path'])
@@ -142,6 +162,12 @@ def _preprocess_var_for_plotting(var, xcoord=None, ycoord=None, ax=None):
     
     X = r*np.sin(h)
     Y = r*np.cos(h)
+    z = 0
+    if side == 'left':
+        X = -1.0 * X
+        z = 180 + z
+        
+    
     if(nb==1 and do_box==0):
         X[:,:,0]=0.0*X[:,:,0]
         X[:,:,bs2new-1]=0.0*X[:,:,bs2new-1]
@@ -160,7 +186,7 @@ def _preprocess_var_for_plotting(var, xcoord=None, ycoord=None, ax=None):
     xy = 0
     xmax = 10
     ymax = 5
-    z = 0
+    
 
     min = -2
     max = 2
@@ -172,7 +198,6 @@ def _preprocess_var_for_plotting(var, xcoord=None, ycoord=None, ax=None):
     xcoord=X[:, 0:ilim]
     ycoord=Y[:, 0:ilim]
     xy=1
-    z=offset
     factor = 20
     xmax=rmax * factor
     ymax=rmax * factor
@@ -184,17 +209,15 @@ def _preprocess_var_for_plotting(var, xcoord=None, ycoord=None, ax=None):
             index_z_block=int((z-int((z/360))*360.0)/360.0*bs3new*nb3*(1+REF_3)**(block[n_ord[i], AMR_LEVEL3]))
             if (block[n_ord[i], AMR_COORD3] == int(index_z_block/bs3new)):
                 offset=index_z_block-block[n_ord[i], AMR_COORD3]*bs3new
-                res = ax.contourf(xcoord[i, :, :, offset], ycoord[i, :, :, offset], myvar[i, :, :, offset], nc, extend='both')
+                # res = ax.contourf(xcoord[i, :, :, offset], ycoord[i, :, :, offset], myvar[i, :, :, offset], nc, extend='both')
     else:
         for i in range(0, nb):
             index_z_block=int(z/360.0*bs3new*nb3*(1+REF_3)**(block[n_ord[i], AMR_LEVEL3]))
             if (block[n_ord[i], AMR_COORD3] == int(index_z_block/bs3new)):
                 offset=index_z_block-block[n_ord[i], AMR_COORD3]*bs3new
-                res = ax.contour(xcoord[i, :, :, offset], ycoord[i, :, :, offset], myvar[i, :, :, offset], nc, linewidths=4, extend='both')
-    plt.colorbar(res, ax=ax)
-    plt.xlim(-xmax, xmax)
-    plt.ylim(-ymax, ymax)
-    return res, ax
+                # res = ax.contour(xcoord[i, :, :, offset], ycoord[i, :, :, offset], myvar[i, :, :, offset], nc, linewidths=4, extend='both')
+    
+    return xcoord[i, :, :, offset], ycoord[i, :, :, offset], myvar[i, :, :, offset]
     
 
 # helper function _plc_cart from harm codebase
