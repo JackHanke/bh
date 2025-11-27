@@ -9,7 +9,8 @@ from src.standardize_inputs import standardize, destandardize
 
 import torch
 
-with open('config.yaml', 'r') as file: config = yaml.safe_load(file)
+HOME_DIR = os.getenv('HOME')
+with open(f'{HOME_DIR}/bh/config.yaml', 'r') as file: config = yaml.safe_load(file)
 
 # 
 def plot_frame(
@@ -50,9 +51,8 @@ def plot_frame(
     )
 
 # view frame and forward pass of autoencoder
-def view_reconstruction(data_path:str, model_path:str, variable_name: str, dump_number: int):
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-    input_shape = (8,224,48,96)
+def view_reconstruction(data_path:str, model, variable_name: str, dump_number: int):
+    
     
     variable_axis_dictionary = {
         'log(rho)': 0,
@@ -84,11 +84,12 @@ def view_reconstruction(data_path:str, model_path:str, variable_name: str, dump_
     variance_save_path = 'src/'+config['variance_save_path']
     avg_array = torch.load(avg_save_path)
     variance_array = torch.load(variance_save_path)
-    # load model
-    model = torch.load(model_path)
+    
+
+    var_tensor = torch.from_numpy(var.astype(np.float32))
 
     # preprocess
-    standardized_var = standardize(var, avg_array, variance_array).to(DEVICE)
+    standardized_var = standardize(var_tensor, avg_array, variance_array).to(DEVICE)
 
     # inference
     prediction = model(standardized_var)

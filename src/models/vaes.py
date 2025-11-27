@@ -9,7 +9,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-with open('../config.yaml', 'r') as file: config = yaml.safe_load(file)
+HOME_DIR = os.getenv('HOME')
+with open(f'{HOME_DIR}/bh/config.yaml', 'r') as file: config = yaml.safe_load(file)
 
 def VAE_loss(label: torch.Tensor, prediction: torch.Tensor, mu: torch.Tensor, logvar: torch.Tensor):
     # loss configs
