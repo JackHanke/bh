@@ -110,9 +110,9 @@ def view_reconstruction(data_path:str, model, variable_name: str, dump_number: i
     # cbar1 = fig.colorbar(mesh1, ax=ax1)
 
     # reconstruction 
-    x,y,z = _preprocess_var_for_plotting(standardized_var.cpu().detach().numpy()[:,var_idx], ax=ax2, side='left')
+    x,y,z = _preprocess_var_for_plotting(postprocessed_prediction.cpu().detach().numpy()[:,var_idx], ax=ax2, side='left')
     res = ax2.contourf(x, y, z, 100, extend='both', cmap=cmap)
-    x,y,z = _preprocess_var_for_plotting(standardized_var.cpu().detach().numpy()[:,var_idx], ax=ax2, side='right')
+    x,y,z = _preprocess_var_for_plotting(postprocessed_prediction.cpu().detach().numpy()[:,var_idx], ax=ax2, side='right')
     res = ax2.contourf(x, y, z, 100, extend='both', cmap=cmap)
     ax2.set_xlim(-xmax, xmax)
     ax2.set_ylim(-ymax, ymax)
@@ -133,6 +133,40 @@ def view_reconstruction(data_path:str, model, variable_name: str, dump_number: i
 # view predictions over time in latent space
 def view_latent_predictions():
     pass
+
+# view training curves by parsing training logs
+def plot_training_from_logs(log_file: str):
+    train_losses, validation_losses = [], []
+    train_reconstruction_losses, validation_reconstruction_losses = [], []
+    train_kl_losses, validation_kl_losses = [], []
+    with open(log_file, 'r') as f:
+        for line in f:
+            if 'Train Loss' in line.strip():
+                train_losses.append(float(line.split()[-1]))
+            elif 'Train Reconstruction Loss' in line.strip():
+                train_reconstruction_losses.append(float(line.split()[-1]))
+            elif 'Train KL Loss' in line.strip():
+                train_kl_losses.append(float(line.split()[-1]))
+            if 'Validation Loss' in line.strip():
+                validation_losses.append(float(line.split()[-1]))
+            elif 'Validation Reconstruction Loss' in line.strip():
+                validation_reconstruction_losses.append(float(line.split()[-1]))
+            elif 'Validation KL Loss' in line.strip():
+                validation_kl_losses.append(float(line.split()[-1]))
+
+        plt.plot([i+1 for i in range(len(train_losses))], train_losses, label='Train Total')
+        plt.plot([i+1 for i in range(len(validation_losses))], validation_losses, label='Valid Total')
+        # plt.plot([i+1 for i in range(len(train_reconstruction_losses))], train_reconstruction_losses, label='Train Recon Total')
+        # plt.plot([i+1 for i in range(len(validation_reconstruction_losses))], validation_reconstruction_losses, label='Valid Recon Total')
+        # plt.plot([i+1 for i in range(len(train_kl_losses))], train_kl_losses, label='Train KL Total')
+        # plt.plot([i+1 for i in range(len(validation_kl_losses))], validation_kl_losses, label='Valid KL Total')
+        plt.title(f'Learning Curves')
+        plt.xlabel(f'Epochs')
+        plt.ylabel(f'Loss')
+        plt.legend()
+        plt.show()
+                                    
+        
 
 # transform raw data to viewable data
 def _preprocess_var_for_plotting(var, ax, side='right'):

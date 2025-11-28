@@ -24,6 +24,8 @@ def destandardize(data: torch.Tensor, avg_array: torch.Tensor, variance_array: t
 
 if __name__ == '__main__':
     from datasets import HDF5Dataset
+
+    ## NOTE this could be rewritten with Welford's Online Algorithm, at the risk of numerical instability
     
     # get configs
     with open('../config.yaml', 'r') as file: config = yaml.safe_load(file)
