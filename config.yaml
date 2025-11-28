@@ -2,6 +2,9 @@
 
 
 ## data configs
+data_x: 224
+data_y: 48
+data_z: 96
 # start dump index to save to disk/train on
 start_dump: 3000
 # end dump index to save to disk/train on

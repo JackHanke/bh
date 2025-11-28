@@ -33,7 +33,7 @@ if __name__ == '__main__':
     end_dump = config['end_dump']
 
     data_path = os.getenv('SCRATCH')+"/data.hdf5"
-    train_dataset = HDF5Dataset(data_path, dataset_type='train', percentage=0.9)
+    train_dataset = HDF5Dataset(data_path, dataset_type='train', percentages=(0.8,0.1))
     avg_save_path = f'channel_wide_average.pt'
     variance_save_path = f'channel_wide_variance.pt'
 
@@ -49,26 +49,24 @@ if __name__ == '__main__':
     
     ## Calculate channel-wise mean
     if not os.path.isfile(avg_save_path):
+        num_datapoints = 0
         prog_bar = tqdm(enumerate(train_loader), total=ceil(train_dataset.size/batch_size), )
         for train_batch_num, (batch_data, label_data) in prog_bar:
             start = time.time()
     
-            # sum over channel
+            # sum over everything but channel
             sum_array = torch.sum(batch_data, dim=(0,2,3,4))
             
             # increment average by batch
+            num_datapoints += batch_data.shape[0]
             if train_batch_num == 0:
-                temp_total = batch_data.shape[0]
-                avg_array = sum_array/temp_total
+                avg_array = sum_array
             else:
-                new_total = temp_total + batch_data.shape[0]
-                avg_array = avg_array*(temp_total/new_total) + sum_array/new_total
-                temp_total += batch_data.shape[0]
-    
+                avg_array += sum_array
 
             batch_str = f'Batch {train_batch_num} completed in {time.time()-start:.4f}s.'
             prog_bar.set_description(batch_str)
-            
+        avg_array = avg_array / (num_datapoints*config['data_x']*config['data_y']*config['data_z'])
         torch.save(f=avg_save_path, obj=avg_array)
     else:
         avg_array = torch.load(avg_save_path)
@@ -77,6 +75,7 @@ if __name__ == '__main__':
     
     ## Calculate channel-wise variance
     if not os.path.isfile(variance_save_path):
+        num_datapoints = 0
         prog_bar = tqdm(enumerate(train_loader), total=ceil(train_dataset.size/batch_size), )
         for train_batch_num, (batch_data, label_data) in prog_bar:
             start = time.time()
@@ -87,22 +86,29 @@ if __name__ == '__main__':
                 ), dim=(0,2,3,4))
 
             # increment average by batch
+            num_datapoints += batch_data.shape[0]
             if train_batch_num == 0:
-                temp_total = batch_data.shape[0]
-                variance_array = sum_array/temp_total
+                variance_array = sum_array
             else:
-                new_total = temp_total + batch_data.shape[0]
-                variance_array = avg_array*(temp_total/new_total) + sum_array/new_total
-                temp_total += batch_data.shape[0]
+                variance_array += sum_array
     
             batch_str = f'Batch {train_batch_num} completed in {time.time()-start:.4f}s.'
             prog_bar.set_description(batch_str)
-
+        variance_array = variance_array / (num_datapoints*config['data_x']*config['data_y']*config['data_z'])
+        torch.save(f=avg_save_path, obj=avg_array)
         torch.save(f=variance_save_path, obj=variance_array)
     else:
         variance_array = torch.load(variance_save_path)
         
     print(f'variance_array = {variance_array}')
+
+    prog_bar = tqdm(enumerate(train_loader), total=ceil(train_dataset.size/batch_size), )
+    for train_batch_num, (batch_data, label_data) in prog_bar:
+        standardized_batch = standardize(batch_data, avg_array, variance_array)
+        print(f'standardized mean: {torch.mean(standardized_batch)} stdev: {torch.sqrt(torch.var(standardized_batch))}')
+        for i in range(8):
+            print(f'mean channel {i}: {torch.mean(standardized_batch[:, i])} stdev: {torch.sqrt(torch.var(standardized_batch[:, i]))}')
+        break
     
 
 

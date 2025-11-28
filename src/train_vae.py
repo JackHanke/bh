@@ -127,7 +127,6 @@ def train_vae():
         for train_batch_num, (batch_data, _) in prog_bar:
             #             
             standardized_batch = standardize(batch_data, avg_array, variance_array).to(DEVICE)
-
             
             # 
             prediction, mu, logvar = model(standardized_batch)
@@ -160,7 +159,7 @@ def train_vae():
             validation_reconstruction_losses.append(reconstruction_loss.item())
             validation_kl_losses.append(kl_loss.item())
             # 
-            prog_bar.set_description(f'Epoch {epoch}, Batch {train_batch_num} Valid Loss: {loss.item():.5f}')
+            prog_bar.set_description(f'Epoch {epoch}, Batch {validation_batch_num} Valid Loss: {loss.item():.5f}')
 
         avg_total_loss = sum(validation_losses)/len(validation_losses)
         logger.info(f'Epoch {epoch} Validation Loss: {avg_total_loss}\nValidation Reconstruction Loss: {sum(validation_reconstruction_losses)/len(validation_reconstruction_losses)}\nValidation KL Loss: {sum(validation_kl_losses)/len(validation_kl_losses)}')

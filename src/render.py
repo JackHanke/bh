@@ -39,6 +39,8 @@ def plot_frame(
         # get data
         var = f['data'][idx][0][var_idx, :, :]
     var = np.expand_dims(var, axis=0)
+
+    print(f'Max value: {np.max(var)} Min value: {np.min(var)}')
     
     _plc_cart(
         var = var,
@@ -92,36 +94,39 @@ def view_reconstruction(data_path:str, model, variable_name: str, dump_number: i
     # postprocess
     postprocessed_prediction = destandardize(prediction, avg_array, variance_array, device=device)
     
-    true_data_frame = var[0,:,:,0]
-
-    # plotting
+    ## plotting
+    cmap = 'jet'
     xmax, ymax = 50, 50
     # true data
     x,y,z = _preprocess_var_for_plotting(var, ax=ax1, side='left')
-    res = ax1.contourf(x, y, z, 100, extend='both', cmap='jet')
+    res = ax1.contourf(x, y, z, 100, extend='both', cmap=cmap)
     x,y,z = _preprocess_var_for_plotting(var, ax=ax1, side='right')
-    res = ax1.contourf(x, y, z, 100, extend='both', cmap='jet')
+    res = ax1.contourf(x, y, z, 100, extend='both', cmap=cmap)
     ax1.set_xlim(-xmax, xmax)
     ax1.set_ylim(-ymax, ymax)
     ax1.set_title(f'Dump {dump_number}')
     ax1.set_aspect('equal', adjustable='box')
-    # TODO color bars
+    # mesh1 = ax1.pcolormesh(x, y, z, shading='auto', cmap=cmap)
+    # cbar1 = fig.colorbar(mesh1, ax=ax1)
 
     # reconstruction 
-    x,y,z = _preprocess_var_for_plotting(prediction.cpu().detach().numpy()[:,var_idx], ax=ax2, side='left')
-    res = ax2.contourf(x, y, z, 100, extend='both', cmap='jet')
-    x,y,z = _preprocess_var_for_plotting(prediction.cpu().detach().numpy()[:,var_idx], ax=ax2, side='right')
-    res = ax2.contourf(x, y, z, 100, extend='both', cmap='jet')
+    x,y,z = _preprocess_var_for_plotting(standardized_var.cpu().detach().numpy()[:,var_idx], ax=ax2, side='left')
+    res = ax2.contourf(x, y, z, 100, extend='both', cmap=cmap)
+    x,y,z = _preprocess_var_for_plotting(standardized_var.cpu().detach().numpy()[:,var_idx], ax=ax2, side='right')
+    res = ax2.contourf(x, y, z, 100, extend='both', cmap=cmap)
     ax2.set_xlim(-xmax, xmax)
     ax2.set_ylim(-ymax, ymax)
     ax2.set_title(f'Recon')
     ax2.set_aspect('equal', adjustable='box')
-    
+    ax2.get_xaxis().set_visible(False)
+    ax2.get_yaxis().set_visible(False)
+    # mesh2 = ax1.pcolormesh(x, y, z, shading='auto', cmap=cmap)
+    # cbar2 = fig.colorbar(mesh2, ax=ax2)
+
+    plt.tight_layout()
     plt.show()
 
     # TODO save fig
-    
-
     
     
 
